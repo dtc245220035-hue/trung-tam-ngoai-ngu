@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Đăng ký học{% endblock %}
+{% block content %}
+<h1>Đăng ký học</h1>
+
+<form method="get" action="/enroll" class="toolbar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên HV, mã HV, mã lớp...">
+  <select name="class_id">
+    <option value="">Tất cả lớp</option>
+    {% for c in classes %}
+    <option value="{{ c.class_id }}" {% if c.class_id|string == class_id %}selected{% endif %}>
+      {{ c.class_code }} — {{ c.course.course_name }}
+    </option>
+    {% endfor %}
+  </select>
+  <select name="status">
+    <option value="" {% if not status %}selected{% endif %}>Đang học</option>
+    <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Đã hủy</option>
+    <option value="all" {% if status == 'all' %}selected{% endif %}>Tất cả</option>
+  </select>
+  <button type="submit" class="btn">Tìm</button>
+  <a href="/enroll/new" class="btn btn-primary">+ Đăng ký học</a>
+</form>
+
+<table>
+  <tr>
+    <th>Mã HV</th><th>Học viên</th><th>Lớp</th><th>Khóa học</th>
+    <th>Ngày đăng ký</th><th>Hóa đơn</th><th>Trạng thái</th><th>Thao tác</th>
+  </tr>
+  {% for e in enrolls %}
+  <tr>
+    <td>{{ e.student.student_code }}</td>
+    <td>{{ e.student.user.full_name }}</td>
+    <td>{{ e.classroom.class_code }}</td>
+    <td>{{ e.classroom.course.course_name }}</td>
+    <td>{{ e.enroll_date.strftime('%d/%m/%Y %H:%M') }}</td>
+    <td>
+      {% set inv = e.student.invoices | selectattr('class_id', 'equalto', e.class_id) | list | first %}
+      {% if inv %}
+        {% if inv.status == 'paid' %}<span class="tag tag-open">Đã đủ</span>
+        {% elif inv.status == 'partial' %}<span class="tag tag-warn">Một phần</span>
+        {% else %}<span class="tag tag-closed">Chưa đóng</span>{% endif %}
+      {% else %}—{% endif %}
+    </td>
+    <td>
+      {% if e.status == 'active' %}<span class="tag tag-open">Đang học</span>
+      {% else %}<span class="tag tag-closed">Đã hủy</span>{% endif %}
+    </td>
+    <td class="actions">
+      {% if e.status == 'active' %}
+      <form method="post" action="/enroll/{{ e.enrollment_id }}/cancel" class="inline"
+            onsubmit="return confirm('Hủy đăng ký của {{ e.student.user.full_name }} khỏi lớp {{ e.classroom.class_code }}?')">
+        <button type="submit" class="btn-sm btn-danger">Hủy đăng ký</button>
+      </form>
+      {% else %}—{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="empty">Chưa có đăng ký nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

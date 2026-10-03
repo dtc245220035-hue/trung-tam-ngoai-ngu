@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Tóm tắt tiến độ{% endblock %}
+{% block content %}
+<h1>Tóm tắt tiến độ học tập</h1>
+<p class="sub">{{ student.student_code }} — {{ student.user.full_name }}</p>
+
+{% if not ai_available %}
+<div class="flash" style="background:#fff3e0;color:#e65100">
+  ⚠ Chưa cấu hình GEMINI_API_KEY. Hệ thống sẽ dùng phương án dự phòng.
+</div>
+{% endif %}
+
+<!-- Thống kê nhanh -->
+<div class="ledger">
+  <div><b>{{ student.level or '—' }}</b><span>Trình độ</span></div>
+  <div><b>{{ attendance_stats.total }}</b><span>Số buổi học</span></div>
+  <div>
+    <b>{{ attendance_stats.rate }}%</b>
+    <span>Tỷ lệ chuyên cần</span>
+  </div>
+  <div><b>{{ results|length }}</b><span>Khóa có điểm</span></div>
+</div>
+
+{% if avg_scores %}
+<h2>Điểm trung bình các kỹ năng</h2>
+<table style="max-width:640px">
+  <tr>
+    <th>Kỹ năng</th><th>Điểm TB</th><th>Đánh giá</th>
+  </tr>
+  {% for skill, val in avg_scores.items() %}
+  <tr>
+    <td>{{ skill }}</td>
+    <td style="text-align:center"><b>{{ val }}/10</b></td>
+    <td>
+      {% if val >= 8 %}<span class="tag tag-open">Tốt</span>
+      {% elif val >= 6.5 %}<span class="tag tag-warn">Khá</span>
+      {% elif val >= 5 %}<span class="tag tag-warn">Trung bình</span>
+      {% else %}<span class="tag tag-closed">Cần cải thiện</span>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% if has_data %}
+<form method="post" action="/ai/progress" style="margin-top:20px">
+  <button type="submit" class="btn btn-primary">🤖 Sinh tóm tắt tiến độ</button>
+</form>
+{% else %}
+<div class="flash" style="margin-top:20px">
+  Chưa đủ dữ liệu để tóm tắt tiến độ. Vui lòng hoàn thành thêm buổi học.
+</div>
+{% endif %}
+
+{% if summary %}
+<div class="card-form" style="max-width:820px;margin-top:24px;background:#f1f8ff;border-color:#90caf9">
+  <h2 style="margin-top:0">📈 Tóm tắt tiến độ</h2>
+  {% if used_fallback %}
+  <p class="hint" style="color:#e65100">⚠ AI không phản hồi — đang dùng phương án dự phòng.</p>
+  {% endif %}
+  <div class="md-content">{{ summary|md|safe }}</div>
+</div>
+{% endif %}
+{% endblock %}

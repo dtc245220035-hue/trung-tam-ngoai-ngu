@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Học viên{% endblock %}
+{% block content %}
+<h1>Quản lý học viên</h1>
+
+<form method="get" action="/students" class="toolbar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên, SĐT, email, mã HV...">
+  <select name="level">
+    <option value="">Tất cả trình độ</option>
+    {% for lv in levels %}
+    <option value="{{ lv }}" {% if lv == level %}selected{% endif %}>{{ lv }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Tìm</button>
+  <a href="/students/new" class="btn btn-primary">+ Thêm học viên</a>
+</form>
+
+<table>
+  <tr>
+    <th>Mã HV</th><th>Họ tên</th><th>SĐT</th><th>Email</th>
+    <th>Trình độ</th><th>Ngày sinh</th><th>Thao tác</th>
+  </tr>
+  {% for s in students %}
+  <tr>
+    <td>{{ s.student_code }}</td>
+    <td>{{ s.user.full_name }}</td>
+    <td>{{ s.user.phone }}</td>
+    <td>{{ s.user.email }}</td>
+    <td>{{ s.level or '—' }}</td>
+    <td>{{ s.date_of_birth.strftime('%d/%m/%Y') if s.date_of_birth else '—' }}</td>
+    <td class="actions">
+      <a href="/students/{{ s.student_id }}/edit" class="btn-sm">Sửa</a>
+      <form method="post" action="/students/{{ s.student_id }}/delete" class="inline"
+            onsubmit="return confirm('Xóa học viên {{ s.user.full_name }}?')">
+        <button type="submit" class="btn-sm btn-danger">Xóa</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="empty">Chưa có học viên nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

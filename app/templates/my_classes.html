@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Lớp của tôi{% endblock %}
+{% block content %}
+<h1>Lớp của tôi</h1>
+<p class="sub">{{ teacher.teacher_code }} — {{ user.full_name }}</p>
+
+<div class="ledger">
+  <div><b>{{ classes|length }}</b><span>Lớp phụ trách</span></div>
+  <div><b>{{ total_students }}</b><span>Tổng học viên</span></div>
+</div>
+
+<table>
+  <tr>
+    <th>Mã lớp</th><th>Khóa học</th><th>Phòng</th>
+    <th>Lịch dạy</th><th>Sĩ số</th><th>Trạng thái</th>
+  </tr>
+  {% for c in classes %}
+  <tr>
+    <td>{{ c.class_code }}</td>
+    <td>{{ c.course.course_name }} <span style="color:#78909c">({{ c.course.level }})</span></td>
+    <td>{{ c.room or '—' }}</td>
+    <td>{{ schedule_text(c) }}</td>
+    <td>{{ c.current_students }}/{{ c.max_students }}</td>
+    <td>
+      {% if c.status == 'open' %}<span class="tag tag-open">Đang mở</span>
+      {% else %}<span class="tag tag-closed">Đã đóng</span>{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">Bạn chưa được phân công lớp nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

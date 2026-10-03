@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Giáo viên{% endblock %}
+{% block content %}
+<h1>Quản lý giáo viên</h1>
+
+<form method="get" action="/teachers" class="toolbar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên, SĐT, email, mã GV, chuyên môn...">
+  <select name="status">
+    <option value="">Tất cả trạng thái</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+  </select>
+  <button type="submit" class="btn">Tìm</button>
+  <a href="/teachers/new" class="btn btn-primary">+ Thêm giáo viên</a>
+</form>
+
+<table>
+  <tr>
+    <th>Mã GV</th><th>Họ tên</th><th>SĐT</th><th>Chuyên môn</th>
+    <th>Bằng cấp</th><th>Số lớp</th><th>Trạng thái</th><th>Thao tác</th>
+  </tr>
+  {% for t in teachers %}
+  <tr>
+    <td><a href="/teachers/{{ t.teacher_id }}">{{ t.teacher_code }}</a></td>
+    <td>{{ t.user.full_name }}</td>
+    <td>{{ t.user.phone }}</td>
+    <td>{{ t.specialization or '—' }}</td>
+    <td>{{ t.degree or '—' }}</td>
+    <td>{{ t.classes|length }}</td>
+    <td>
+      {% if t.status == 'active' %}<span class="tag tag-open">Hoạt động</span>
+      {% else %}<span class="tag tag-closed">Ngừng</span>{% endif %}
+    </td>
+    <td class="actions">
+      <a href="/teachers/{{ t.teacher_id }}" class="btn-sm">Xem</a>
+      <a href="/teachers/{{ t.teacher_id }}/edit" class="btn-sm">Sửa</a>
+      <form method="post" action="/teachers/{{ t.teacher_id }}/toggle" class="inline">
+        <button type="submit" class="btn-sm">
+          {{ 'Ngừng' if t.status == 'active' else 'Kích hoạt' }}
+        </button>
+      </form>
+      <form method="post" action="/teachers/{{ t.teacher_id }}/delete" class="inline"
+            onsubmit="return confirm('Xóa giáo viên {{ t.user.full_name }}?')">
+        <button type="submit" class="btn-sm btn-danger">Xóa</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="empty">Chưa có giáo viên nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

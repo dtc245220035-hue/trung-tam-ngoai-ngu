@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Thống kê báo cáo{% endblock %}
+{% block content %}
+<h1>Thống kê báo cáo</h1>
+<p class="sub">Xem báo cáo về sĩ số, doanh thu và tỷ lệ hoàn thành khóa học.</p>
+
+<!-- Tabs -->
+<div class="tabs">
+  <a href="/stats?tab=enrollment" class="tab {% if tab == 'enrollment' %}on{% endif %}">Sĩ số theo lớp</a>
+  <a href="/stats?tab=revenue" class="tab {% if tab == 'revenue' %}on{% endif %}">Doanh thu</a>
+  <a href="/stats?tab=completion" class="tab {% if tab == 'completion' %}on{% endif %}">Tỷ lệ hoàn thành</a>
+</div>
+
+<!-- Filter thời gian (không áp dụng cho tab hoàn thành) -->
+{% if tab != 'completion' %}
+<form method="get" action="/stats" class="toolbar">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <label style="font-weight:500">Từ ngày:</label>
+  <input type="date" name="from_date" value="{{ from_date }}">
+  <label style="font-weight:500">Đến ngày:</label>
+  <input type="date" name="to_date" value="{{ to_date }}">
+  <button type="submit" class="btn btn-primary">Xem báo cáo</button>
+</form>
+{% endif %}
+
+{# ============ TAB 1: SĨ SỐ ============ #}
+{% if tab == 'enrollment' %}
+<div class="ledger">
+  <div><b>{{ rows|length }}</b><span>Tổng số lớp</span></div>
+  <div><b>{{ total_students }}</b><span>Tổng học viên đang học</span></div>
+</div>
+
+<h2>Biểu đồ sĩ số theo lớp</h2>
+<div class="chart-wrap">
+  <canvas id="chartEnroll"></canvas>
+</div>
+
+<h2>Bảng chi tiết</h2>
+<table>
+  <tr>
+    <th>Mã lớp</th><th>Khóa học</th><th>Trình độ</th><th>Phòng</th>
+    <th>Đang học</th><th>Sĩ số tối đa</th><th>Tỷ lệ lấp</th><th>Đăng ký mới</th>
+  </tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.class_code }}</td>
+    <td>{{ r.course_name }}</td>
+    <td>{{ r.level }}</td>
+    <td>{{ r.room }}</td>
+    <td style="text-align:center">{{ r.current }}</td>
+    <td style="text-align:center">{{ r.max }}</td>
+    <td style="text-align:center">
+      <div class="bar-wrap"><div class="bar" style="width:{{ r.fill_rate }}%"></div></div>
+      {{ r.fill_rate }}%
+    </td>
+    <td style="text-align:center">{{ r.n_new }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="empty">Chưa có lớp nào.</td></tr>
+  {% endfor %}
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const ctxEnroll = document.getElementById('chartEnroll');
+if (ctxEnroll && window.Chart) {
+  new Chart(ctxEnroll, {
+    type: 'bar',
+    data: {
+      labels: [{% for r in rows %}'{{ r.class_code }}',{% endfor %}],
+      datasets: [
+        {
+          label: 'Đang học',
+          data: [{% for r in rows %}{{ r.current }},{% endfor %}],
+          backgroundColor: '#1976d2',
+        },
+        {
+          label: 'Sĩ số tối đa',
+          data: [{% for r in rows %}{{ r.max }},{% endfor %}],
+          backgroundColor: '#cfd8dc',
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 5 } } }
+    }
+  });
+}
+</script>
+{% endif %}
+
+{# ============ TAB 2: DOANH THU ============ #}
+{% if tab == 'revenue' %}
+<div class="ledger">
+  <div><b>{{ total_revenue|vnd }}</b><span>Doanh thu trong kỳ</span></div>
+  <div><b>{{ total_debt|vnd }}</b><span>Tổng công nợ toàn hệ thống</span></div>
+</div>
+
+<h2>Biểu đồ doanh thu theo tháng</h2>
+<div class="chart-wrap">
+  <canvas id="chartRevenue"></canvas>
+</div>
+
+<h2>Bảng chi tiết</h2>
+<table>
+  <tr>
+    <th>Tháng</th><th>Số giao dịch</th>
+    <th>Tiền mặt</th><th>Chuyển khoản</th><th>Tổng thu</th>
+  </tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.month }}</td>
+    <td style="text-align:center">{{ r.n }}</td>
+    <td style="text-align:right">{{ r.cash|vnd }}</td>
+    <td style="text-align:right">{{ r.transfer|vnd }}</td>
+    <td style="text-align:right"><b>{{ r.total|vnd }}</b></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="empty">Không có giao dịch nào trong khoảng thời gian đã chọn.</td></tr>
+  {% endfor %}
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const ctxRev = document.getElementById('chartRevenue');
+if (ctxRev && window.Chart) {
+  new Chart(ctxRev, {
+    type: 'line',
+    data: {
+      labels: [{% for r in rows %}'{{ r.month }}',{% endfor %}],
+      datasets: [
+        {
+          label: 'Tiền mặt',
+          data: [{% for r in rows %}{{ r.cash }},{% endfor %}],
+          borderColor: '#43a047', backgroundColor: 'rgba(67,160,71,0.15)',
+          fill: true, tension: 0.3,
+        },
+        {
+          label: 'Chuyển khoản',
+          data: [{% for r in rows %}{{ r.transfer }},{% endfor %}],
+          borderColor: '#1976d2', backgroundColor: 'rgba(25,118,210,0.15)',
+          fill: true, tension: 0.3,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+}
+</script>
+{% endif %}
+
+{# ============ TAB 3: TỶ LỆ HOÀN THÀNH ============ #}
+{% if tab == 'completion' %}
+<div class="ledger">
+  <div><b>{{ rows|length }}</b><span>Tổng số lớp</span></div>
+  <div>
+    <b>{{ '%.1f'|format((rows|sum(attribute='n_pass') / rows|sum(attribute='n_graded') * 100) if rows|sum(attribute='n_graded') > 0 else 0) }}%</b>
+    <span>Tỷ lệ hoàn thành chung</span>
+  </div>
+</div>
+
+<h2>Biểu đồ tỷ lệ hoàn thành theo lớp</h2>
+<div class="chart-wrap">
+  <canvas id="chartRate"></canvas>
+</div>
+
+<h2>Bảng chi tiết</h2>
+<table>
+  <tr>
+    <th>Mã lớp</th><th>Khóa học</th><th>Trình độ</th>
+    <th>Đã đăng ký</th><th>Đã có điểm</th>
+    <th>Đạt</th><th>Không đạt</th><th>Tỷ lệ đạt</th>
+  </tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.class_code }}</td>
+    <td>{{ r.course_name }}</td>
+    <td>{{ r.level }}</td>
+    <td style="text-align:center">{{ r.n_enrolled }}</td>
+    <td style="text-align:center">{{ r.n_graded }}</td>
+    <td style="text-align:center;color:#2e7d32"><b>{{ r.n_pass }}</b></td>
+    <td style="text-align:center;color:#c62828"><b>{{ r.n_fail }}</b></td>
+    <td style="text-align:center">
+      <div class="bar-wrap"><div class="bar bar-ok" style="width:{{ r.rate }}%"></div></div>
+      {{ r.rate }}%
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="empty">Chưa có lớp nào.</td></tr>
+  {% endfor %}
+</table>
+<p class="hint">ⓘ Tỷ lệ hoàn thành = số học viên có điểm TB ≥ 5 / tổng học viên đã được nhập điểm.</p>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const ctxRate = document.getElementById('chartRate');
+if (ctxRate && window.Chart) {
+  new Chart(ctxRate, {
+    type: 'bar',
+    data: {
+      labels: [{% for r in rows %}'{{ r.class_code }}',{% endfor %}],
+      datasets: [{
+        label: 'Tỷ lệ đạt (%)',
+        data: [{% for r in rows %}{{ r.rate }},{% endfor %}],
+        backgroundColor: [{% for r in rows %}{% if r.rate >= 80 %}'#43a047'{% elif r.rate >= 50 %}'#fb8c00'{% else %}'#e53935'{% endif %},{% endfor %}],
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, max: 100 } }
+    }
+  });
+}
+</script>
+{% endif %}
+{% endblock %}

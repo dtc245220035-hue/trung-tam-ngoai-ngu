@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Học phí{% endblock %}
+{% block content %}
+<h1>Quản lý học phí</h1>
+
+<form method="get" action="/invoices" class="toolbar">
+  <input type="text" name="q" value="{{ q }}"
+         placeholder="Tìm theo tên HV, mã HV, mã lớp, mã hóa đơn...">
+  <select name="status">
+    <option value=""     {% if not status %}selected{% endif %}>Tất cả</option>
+    <option value="unpaid"  {% if status == 'unpaid' %}selected{% endif %}>Chưa đóng</option>
+    <option value="partial" {% if status == 'partial' %}selected{% endif %}>Đóng một phần</option>
+    <option value="paid"    {% if status == 'paid' %}selected{% endif %}>Đã đủ</option>
+  </select>
+  <button type="submit" class="btn">Tìm</button>
+</form>
+
+<table>
+  <tr>
+    <th>Mã HĐ</th><th>Học viên</th><th>Lớp</th>
+    <th>Tổng tiền</th><th>Đã đóng</th><th>Còn lại</th>
+    <th>Trạng thái</th><th>Ngày tạo</th><th>Thao tác</th>
+  </tr>
+  {% for inv in invoices %}
+  <tr>
+    <td>{{ inv.invoice_code }}</td>
+    <td>{{ inv.student.user.full_name }}<br>
+        <span style="color:#78909c;font-size:12px">{{ inv.student.student_code }}</span></td>
+    <td>{{ inv.classroom.class_code }}</td>
+    <td style="text-align:right">{{ inv.total_amount | vnd }}</td>
+    <td style="text-align:right">{{ inv.paid_amount | vnd }}</td>
+    <td style="text-align:right">{{ inv.remaining_amount | vnd }}</td>
+    <td>
+      {% if inv.status == 'paid' %}<span class="tag tag-open">Đã đủ</span>
+      {% elif inv.status == 'partial' %}<span class="tag tag-warn">Một phần</span>
+      {% else %}<span class="tag tag-closed">Chưa đóng</span>{% endif %}
+    </td>
+    <td>{{ inv.created_at.strftime('%d/%m/%Y') }}</td>
+    <td><a href="/invoices/{{ inv.invoice_id }}" class="btn btn-sm">Chi tiết</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9" class="empty">Không có hóa đơn nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

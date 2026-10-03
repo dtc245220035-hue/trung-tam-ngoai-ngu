@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Lịch học{% endblock %}
+{% block content %}
+<h1>Lịch học của tôi</h1>
+<p class="sub">{{ student.student_code }} — {{ student.user.full_name }}</p>
+
+<h2>Thời khóa biểu trong tuần</h2>
+{% if all_scheds %}
+<table>
+  <tr>
+    <th>Thứ</th><th>Giờ</th><th>Lớp</th><th>Khóa học</th><th>Phòng</th><th>Giáo viên</th>
+  </tr>
+  {% for c, s in all_scheds %}
+  <tr>
+    <td>{{ s.day_of_week }}</td>
+    <td>{{ s.start_time.strftime('%H:%M') }} – {{ s.end_time.strftime('%H:%M') }}</td>
+    <td>{{ c.class_code }}</td>
+    <td>{{ c.course.course_name }}</td>
+    <td>{{ c.room or '—' }}</td>
+    <td>{{ c.teacher.user.full_name if c.teacher else '—' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="flash">Bạn chưa có lịch học nào.</div>
+{% endif %}
+
+<h2>Lớp đang học ({{ my_classes|length }})</h2>
+<table>
+  <tr>
+    <th>Mã lớp</th><th>Khóa học</th><th>Trình độ</th>
+    <th>Lịch học</th><th>Phòng</th><th>Giáo viên</th>
+  </tr>
+  {% for c in my_classes %}
+  <tr>
+    <td>{{ c.class_code }}</td>
+    <td>{{ c.course.course_name }}</td>
+    <td>{{ c.course.level }}</td>
+    <td>{{ schedule_text(c) }}</td>
+    <td>{{ c.room or '—' }}</td>
+    <td>{{ c.teacher.user.full_name if c.teacher else '—' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">Bạn chưa đăng ký lớp nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

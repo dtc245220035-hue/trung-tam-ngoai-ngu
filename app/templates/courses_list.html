@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Khóa học{% endblock %}
+{% block content %}
+<h1>Quản lý khóa học</h1>
+
+<form method="get" action="/courses" class="toolbar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên hoặc mã khóa học...">
+  <select name="level">
+    <option value="">Tất cả trình độ</option>
+    {% for lv in levels %}
+    <option value="{{ lv }}" {% if lv == level %}selected{% endif %}>{{ lv }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Tìm</button>
+  <a href="/courses/new" class="btn btn-primary">+ Thêm khóa học</a>
+</form>
+
+<table>
+  <tr>
+    <th>Mã KH</th><th>Tên khóa học</th><th>Trình độ</th>
+    <th>Học phí</th><th>Thời lượng</th><th>Số lớp</th><th>Thao tác</th>
+  </tr>
+  {% for c in courses %}
+  <tr>
+    <td>{{ c.course_code }}</td>
+    <td>{{ c.course_name }}</td>
+    <td>{{ c.level }}</td>
+    <td>{{ c.tuition_fee|vnd }}</td>
+    <td>{{ c.duration }} buổi</td>
+    <td>{{ c.classes|length }}</td>
+    <td class="actions">
+      <a href="/courses/{{ c.course_id }}/edit" class="btn-sm">Sửa</a>
+      <form method="post" action="/courses/{{ c.course_id }}/delete" class="inline"
+            onsubmit="return confirm('Xóa khóa học {{ c.course_name }}?')">
+        <button type="submit" class="btn-sm btn-danger">Xóa</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="empty">Chưa có khóa học nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

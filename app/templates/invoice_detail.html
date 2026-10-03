@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Hóa đơn {{ inv.invoice_code }}{% endblock %}
+{% block content %}
+<h1>Hóa đơn {{ inv.invoice_code }}</h1>
+<p class="sub">
+  <a href="/invoices">← Danh sách học phí</a>
+</p>
+
+<!-- Thông tin hóa đơn -->
+<div class="card-form" style="max-width:720px;margin-bottom:24px">
+  <h2 style="margin-top:0">Thông tin hóa đơn</h2>
+  <div class="form-row-2col">
+    <div>
+      <div class="hint">Học viên</div>
+      <b>{{ inv.student.user.full_name }}</b>
+      ({{ inv.student.student_code }})
+    </div>
+    <div>
+      <div class="hint">Lớp học</div>
+      <b>{{ inv.classroom.class_code }}</b>
+      — {{ inv.classroom.course.course_name }}
+    </div>
+    <div>
+      <div class="hint">Học phí</div>
+      <b>{{ inv.total_amount | vnd }}</b>
+    </div>
+    <div>
+      <div class="hint">Đã đóng</div>
+      <b>{{ inv.paid_amount | vnd }}</b>
+    </div>
+    <div>
+      <div class="hint">Còn lại</div>
+      <b style="color:{% if inv.remaining_amount > 0 %}#c62828{% else %}#2e7d32{% endif %}">
+        {{ inv.remaining_amount | vnd }}
+      </b>
+    </div>
+    <div>
+      <div class="hint">Trạng thái</div>
+      {% if inv.status == 'paid' %}<span class="tag tag-open">Đã thanh toán đủ</span>
+      {% elif inv.status == 'partial' %}<span class="tag tag-warn">Đóng một phần</span>
+      {% else %}<span class="tag tag-closed">Chưa đóng</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Lịch sử thanh toán -->
+<h2>Lịch sử thanh toán</h2>
+<table style="max-width:720px;margin-bottom:24px">
+  <tr>
+    <th>Ngày</th><th>Số tiền</th><th>Phương thức</th><th>Ghi chú</th><th>Người ghi</th>
+  </tr>
+  {% for p in inv.payments %}
+  <tr>
+    <td>{{ p.payment_date.strftime('%d/%m/%Y %H:%M') }}</td>
+    <td style="text-align:right">{{ p.amount | vnd }}</td>
+    <td>{% if p.method == 'cash' %}💵 Tiền mặt{% else %}🏦 Chuyển khoản{% endif %}</td>
+    <td>{{ p.note or '—' }}</td>
+    <td>{{ p.creator.full_name }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="empty">Chưa có lần thanh toán nào.</td></tr>
+  {% endfor %}
+</table>
+
+<!-- Form ghi nhận thanh toán -->
+{% if inv.status != 'paid' %}
+<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+
+  <div class="card-form" style="max-width:480px;flex:1;min-width:300px">
+    <h2 style="margin-top:0">Ghi nhận thanh toán</h2>
+    <form method="post" action="/invoices/{{ inv.invoice_id }}/pay" id="payForm">
+      <div class="form-row">
+        <label>Số tiền <span class="req">*</span></label>
+        <input type="number" name="amount" id="amountInput" min="1"
+               value="{{ inv.remaining_amount | int }}"
+               step="1" required>
+        <p class="hint">Tối đa: {{ inv.remaining_amount | vnd }}</p>
+      </div>
+      <div class="form-row">
+        <label>Phương thức <span class="req">*</span></label>
+        <select name="method" id="methodSelect" required>
+          <option value="cash">💵 Tiền mặt</option>
+          <option value="transfer">🏦 Chuyển khoản</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Ghi chú</label>
+        <input type="text" name="note" id="noteInput"
+               placeholder="(tuỳ chọn)"
+               value="Hoc phi {{ inv.invoice_code }}">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Xác nhận thanh toán</button>
+        <a href="/invoices" class="btn">Quay lại</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Khung QR chuyển khoản -->
+  <div id="qrBox" class="card-form" style="max-width:280px;text-align:center;display:none;flex-shrink:0">
+    <h2 style="margin-top:0;font-size:15px">Quét QR chuyển khoản</h2>
+    <img id="qrImg" src="" alt="QR chuyển khoản"
+         style="width:220px;height:220px;border-radius:8px;border:1px solid #e0e6ed">
+    <div style="margin-top:12px;font-size:13px;color:#37474f;text-align:left;line-height:1.7">
+      <div>🏦 <b>MB Bank</b></div>
+      <div>📋 STK: <b>0123456789</b></div>
+      <div>👤 Chủ TK: <b>TRUNG TÂM NGOẠI NGỮ</b></div>
+      <div id="qrAmount" style="color:#1976d2;font-weight:600"></div>
+      <div id="qrNote" style="font-size:12px;color:#607d8b"></div>
+    </div>
+    <p class="hint" style="margin-top:8px">
+      ⓘ QR tự cập nhật theo số tiền và nội dung bên trái.
+    </p>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const BANK    = 'MB';          // Mã ngân hàng VietQR
+  const ACCOUNT = '0123456789';  // Số tài khoản
+  const ACNAME  = 'TRUNG TAM NGOAI NGU'; // Tên chủ TK (không dấu)
+
+  const methodSel  = document.getElementById('methodSelect');
+  const amountInp  = document.getElementById('amountInput');
+  const noteInp    = document.getElementById('noteInput');
+  const qrBox      = document.getElementById('qrBox');
+  const qrImg      = document.getElementById('qrImg');
+  const qrAmountEl = document.getElementById('qrAmount');
+  const qrNoteEl   = document.getElementById('qrNote');
+
+  function updateQR() {
+    const isTransfer = methodSel.value === 'transfer';
+    qrBox.style.display = isTransfer ? 'block' : 'none';
+    if (!isTransfer) return;
+
+    const amount = parseInt(amountInp.value) || 0;
+    const note   = noteInp.value.trim() || ('Hoc phi ' + '{{ inv.invoice_code }}');
+    const url = `https://img.vietqr.io/image/${BANK}-${ACCOUNT}-compact2.jpg`
+              + `?amount=${amount}&addInfo=${encodeURIComponent(note)}&accountName=${encodeURIComponent(ACNAME)}`;
+
+    qrImg.src = url;
+    qrAmountEl.textContent = '💰 ' + amount.toLocaleString('vi-VN') + ' đ';
+    qrNoteEl.textContent   = '📝 ' + note;
+  }
+
+  methodSel.addEventListener('change', updateQR);
+  amountInp.addEventListener('input',  updateQR);
+  noteInp.addEventListener('input',    updateQR);
+
+  // Khởi tạo nếu đang ở transfer
+  updateQR();
+})();
+</script>
+
+{% else %}
+<p style="color:#2e7d32;font-weight:500">✅ Hóa đơn đã được thanh toán đầy đủ.</p>
+<a href="/invoices" class="btn">Quay lại danh sách</a>
+{% endif %}
+{% endblock %}

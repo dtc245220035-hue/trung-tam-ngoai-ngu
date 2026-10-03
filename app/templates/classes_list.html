@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Lớp học{% endblock %}
+{% block content %}
+<h1>Quản lý lớp và lịch học</h1>
+
+<form method="get" action="/classes" class="toolbar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo mã lớp, khóa học, phòng...">
+  <select name="status">
+    <option value="">Tất cả trạng thái</option>
+    <option value="open" {% if status == 'open' %}selected{% endif %}>Đang mở</option>
+    <option value="closed" {% if status == 'closed' %}selected{% endif %}>Đã đóng</option>
+  </select>
+  <button type="submit" class="btn">Tìm</button>
+  <a href="/classes/new" class="btn btn-primary">+ Tạo lớp</a>
+</form>
+
+<table>
+  <tr>
+    <th>Mã lớp</th><th>Khóa học</th><th>Giáo viên</th><th>Phòng</th>
+    <th>Lịch học</th><th>Sĩ số</th><th>Trạng thái</th><th>Thao tác</th>
+  </tr>
+  {% for c in classes %}
+  <tr>
+    <td>{{ c.class_code }}</td>
+    <td>{{ c.course.course_name }}</td>
+    <td>{{ c.teacher.user.full_name if c.teacher else '— Chưa phân công —' }}</td>
+    <td>{{ c.room or '—' }}</td>
+    <td>{{ schedule_text(c) }}</td>
+    <td>{{ c.current_students }}/{{ c.max_students }}</td>
+    <td>
+      {% if c.status == 'open' %}<span class="tag tag-open">Đang mở</span>
+      {% else %}<span class="tag tag-closed">Đã đóng</span>{% endif %}
+    </td>
+    <td class="actions">
+      <a href="/classes/{{ c.class_id }}/edit" class="btn-sm">Sửa</a>
+      {% if c.status == 'open' %}
+      <form method="post" action="/classes/{{ c.class_id }}/close" class="inline"
+            onsubmit="return confirm('Đóng lớp {{ c.class_code }}?')">
+        <button type="submit" class="btn-sm">Đóng</button>
+      </form>
+      {% else %}
+      <form method="post" action="/classes/{{ c.class_id }}/reopen" class="inline"
+            onsubmit="return confirm('Mở lại lớp {{ c.class_code }}?')">
+        <button type="submit" class="btn-sm">Mở lại</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/classes/{{ c.class_id }}/delete" class="inline"
+            onsubmit="return confirm('Xóa lớp {{ c.class_code }}?')">
+        <button type="submit" class="btn-sm btn-danger">Xóa</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="empty">Chưa có lớp nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

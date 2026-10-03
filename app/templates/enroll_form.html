@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Đăng ký học{% endblock %}
+{% block content %}
+<h1>Đăng ký học viên vào lớp</h1>
+
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<form method="post" class="card-form">
+  <div class="form-row">
+    <label>Học viên <span class="req">*</span></label>
+    <select name="student_id" required>
+      <option value="">— Chọn học viên —</option>
+      {% for s in students %}
+      <option value="{{ s.student_id }}" {% if s.student_id|string == form.student_id|string %}selected{% endif %}>
+        {{ s.student_code }} — {{ s.user.full_name }}
+        {% if s.level %}(trình độ {{ s.level }}){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label>Lớp học <span class="req">*</span></label>
+    <select name="class_id" required>
+      <option value="">— Chọn lớp đang mở —</option>
+      {% for c in classes %}
+      <option value="{{ c.class_id }}" {% if c.class_id|string == form.class_id|string %}selected{% endif %}
+              {% if c.seats_left <= 0 %}disabled{% endif %}>
+        {{ c.class_code }} — {{ c.course.course_name }} ({{ c.course.level }})
+        — {{ schedule_text(c) }}
+        — còn {{ c.seats_left }}/{{ c.max_students }} chỗ
+      </option>
+      {% endfor %}
+    </select>
+    <p class="hint">Chỉ hiển thị lớp đang mở. Lớp đã đầy sẽ bị vô hiệu hóa.</p>
+  </div>
+
+  <p class="hint">
+    ⓘ Sau khi đăng ký thành công, hệ thống sẽ <b>tự sinh hóa đơn học phí</b> cho học viên.
+  </p>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Đăng ký</button>
+    <a href="/enroll" class="btn">Hủy</a>
+  </div>
+</form>
+{% endblock %}

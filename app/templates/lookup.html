@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Tra cứu{% endblock %}
+{% block content %}
+<h1>Tra cứu</h1>
+<p class="sub">Tìm kiếm lớp học, học viên, hoặc hóa đơn.</p>
+
+<form method="get" action="/lookup" class="toolbar">
+  <input type="text" name="q" value="{{ q }}" required
+         placeholder="Nhập từ khoá: tên HV, mã HV, mã lớp, tên khóa học, mã HĐ...">
+  <select name="type">
+    <option value="class" {% if type == 'class' %}selected{% endif %}>Lớp học</option>
+    <option value="student" {% if type == 'student' %}selected{% endif %}>Học viên</option>
+    {% if user.role in ('admin', 'consultant') %}
+    <option value="invoice" {% if type == 'invoice' %}selected{% endif %}>Hóa đơn</option>
+    {% endif %}
+  </select>
+  <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+</form>
+
+{% if q %}
+  <p class="sub" style="margin-top:12px">
+    Tìm thấy <b>{{ total }}</b> kết quả cho "<b>{{ q }}</b>"
+    {% if type == 'class' %}(Lớp học)
+    {% elif type == 'student' %}(Học viên)
+    {% else %}(Hóa đơn){% endif %}
+  </p>
+
+  {% if type == 'class' %}
+    <table>
+      <tr>
+        <th>Mã lớp</th><th>Khóa học</th><th>Giáo viên</th><th>Phòng</th>
+        <th>Lịch học</th><th>Sĩ số</th><th>Trạng thái</th>
+      </tr>
+      {% for c in results %}
+      <tr>
+        <td>{{ c.class_code }}</td>
+        <td>{{ c.course.course_name }} <span style="color:#78909c">({{ c.course.level }})</span></td>
+        <td>{{ c.teacher.user.full_name if c.teacher else '—' }}</td>
+        <td>{{ c.room or '—' }}</td>
+        <td>{{ schedule_text(c) }}</td>
+        <td>{{ c.current_students }}/{{ c.max_students }}</td>
+        <td>
+          {% if c.status == 'open' %}<span class="tag tag-open">Đang mở</span>
+          {% else %}<span class="tag tag-closed">Đã đóng</span>{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="empty">Không tìm thấy lớp nào.</td></tr>
+      {% endfor %}
+    </table>
+
+  {% elif type == 'student' %}
+    <table>
+      <tr>
+        <th>Mã HV</th><th>Họ tên</th><th>SĐT</th><th>Email</th>
+        <th>Trình độ</th><th>Ngày sinh</th>
+      </tr>
+      {% for s in results %}
+      <tr>
+        <td>{{ s.student_code }}</td>
+        <td>{{ s.user.full_name }}</td>
+        <td>{{ s.user.phone }}</td>
+        <td>{{ s.user.email }}</td>
+        <td>{{ s.level or '—' }}</td>
+        <td>{{ s.date_of_birth.strftime('%d/%m/%Y') if s.date_of_birth else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty">Không tìm thấy học viên nào.</td></tr>
+      {% endfor %}
+    </table>
+
+  {% else %}
+    <table>
+      <tr>
+        <th>Mã HĐ</th><th>Học viên</th><th>Lớp</th>
+        <th>Tổng tiền</th><th>Đã đóng</th><th>Còn nợ</th>
+        <th>Trạng thái</th>
+      </tr>
+      {% for inv in results %}
+      <tr>
+        <td>{{ inv.invoice_code }}</td>
+        <td>{{ inv.student.user.full_name }}<br>
+            <span style="color:#78909c;font-size:12px">{{ inv.student.student_code }}</span></td>
+        <td>{{ inv.classroom.class_code }}</td>
+        <td style="text-align:right">{{ inv.total_amount|vnd }}</td>
+        <td style="text-align:right">{{ inv.paid_amount|vnd }}</td>
+        <td style="text-align:right;color:{% if inv.remaining_amount > 0 %}#c62828{% else %}#2e7d32{% endif %}">
+          {{ inv.remaining_amount|vnd }}
+        </td>
+        <td>
+          {% if inv.status == 'paid' %}<span class="tag tag-open">Đã đủ</span>
+          {% elif inv.status == 'partial' %}<span class="tag tag-warn">Một phần</span>
+          {% else %}<span class="tag tag-closed">Chưa đóng</span>{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="empty">Không tìm thấy hóa đơn nào.</td></tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+
+{% else %}
+  <div class="flash" style="margin-top:16px">
+    ⓘ Nhập từ khoá và chọn loại tìm kiếm để bắt đầu.
+    {% if user.role == 'teacher' %}
+    <br>Lưu ý: Giáo viên chỉ tra cứu được lớp mình phụ trách và học viên trong lớp đó.
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

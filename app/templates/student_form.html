@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Thêm' if mode == 'new' else 'Sửa' }} học viên{% endblock %}
+{% block content %}
+<h1>{{ 'Thêm học viên mới' if mode == 'new' else 'Sửa học viên ' ~ student.student_code }}</h1>
+
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<form method="post" class="card-form">
+  <div class="form-row">
+    <label>Họ tên <span class="req">*</span></label>
+    <input type="text" name="full_name" value="{{ form.full_name or '' }}" required maxlength="100">
+  </div>
+  <div class="form-row">
+    <label>Số điện thoại <span class="req">*</span></label>
+    <input type="text" name="phone" value="{{ form.phone or '' }}" required
+           pattern="[0-9]{10}" maxlength="10" title="10 chữ số">
+  </div>
+  <div class="form-row">
+    <label>Email <span class="req">*</span></label>
+    <input type="email" name="email" value="{{ form.email or '' }}" required maxlength="100">
+  </div>
+  <div class="form-row">
+    <label>Trình độ</label>
+    <select name="level">
+      <option value="">— Chưa xác định —</option>
+      {% for lv in levels %}
+      <option value="{{ lv }}" {% if lv == form.level %}selected{% endif %}>{{ lv }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row">
+    <label>Ngày sinh</label>
+    <input type="date" name="date_of_birth" value="{{ form.date_of_birth or '' }}">
+  </div>
+  <div class="form-row">
+    <label>Ghi chú</label>
+    <textarea name="note" rows="3" maxlength="255">{{ form.note or '' }}</textarea>
+  </div>
+
+  {% if mode == 'new' %}
+  <p class="hint">Tài khoản đăng nhập sẽ được hệ thống tự sinh (dạng <code>hvN / hv123</code>) và thông báo sau khi lưu.</p>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a href="/students" class="btn">Hủy</a>
+  </div>
+</form>
+{% endblock %}

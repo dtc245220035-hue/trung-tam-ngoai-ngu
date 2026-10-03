@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Học phí{% endblock %}
+{% block content %}
+<h1>Học phí của tôi</h1>
+<p class="sub">{{ student.student_code }} — {{ student.user.full_name }}</p>
+
+<div class="ledger">
+  <div><b>{{ total_amount|vnd }}</b><span>Tổng học phí</span></div>
+  <div><b>{{ total_paid|vnd }}</b><span>Đã đóng</span></div>
+  <div>
+    <b style="color:{% if total_owing > 0 %}#c62828{% else %}#2e7d32{% endif %}">
+      {{ total_owing|vnd }}
+    </b>
+    <span>Còn lại</span>
+  </div>
+</div>
+
+<table>
+  <tr>
+    <th>Mã HĐ</th><th>Lớp</th><th>Khóa học</th>
+    <th>Tổng tiền</th><th>Đã đóng</th><th>Còn nợ</th>
+    <th>Trạng thái</th><th>Ngày tạo</th>
+  </tr>
+  {% for inv in invoices %}
+  <tr>
+    <td>{{ inv.invoice_code }}</td>
+    <td>{{ inv.classroom.class_code }}</td>
+    <td>{{ inv.classroom.course.course_name }}</td>
+    <td style="text-align:right">{{ inv.total_amount|vnd }}</td>
+    <td style="text-align:right">{{ inv.paid_amount|vnd }}</td>
+    <td style="text-align:right;color:{% if inv.remaining_amount > 0 %}#c62828{% else %}#2e7d32{% endif %}">
+      {{ inv.remaining_amount|vnd }}
+    </td>
+    <td>
+      {% if inv.status == 'paid' %}<span class="tag tag-open">Đã đủ</span>
+      {% elif inv.status == 'partial' %}<span class="tag tag-warn">Một phần</span>
+      {% else %}<span class="tag tag-closed">Chưa đóng</span>{% endif %}
+    </td>
+    <td>{{ inv.created_at.strftime('%d/%m/%Y') }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="empty">Bạn chưa có hóa đơn nào.</td></tr>
+  {% endfor %}
+</table>
+
+{% if total_owing > 0 %}
+<div class="flash" style="background:#fff3e0;color:#e65100;margin-top:16px">
+  ⓘ Vui lòng liên hệ Tư vấn viên để thanh toán số tiền còn lại.
+</div>
+{% endif %}
+{% endblock %}

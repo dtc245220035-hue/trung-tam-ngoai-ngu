@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Trung tâm ngoại ngữ{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+{% block body %}
+{% if user %}
+<div class="shell">
+  <aside class="side">
+    <div class="brand">Trung tâm<br>ngoại ngữ</div>
+    <nav>
+      {% for item in menu %}
+        {% if item.key in built %}
+          <a href="{{ item.path }}" class="{% if current_path == item.path or (item.path != '/dashboard' and current_path.startswith(item.path)) %}on{% endif %}">{{ item.label }}</a>
+        {% else %}
+          <span class="soon" title="Chức năng đang được xây dựng">{{ item.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+    <div class="who">
+      <b>{{ user.full_name }}</b>
+      <span>{{ ROLE_LABEL[user.role] }}</span>
+      <form method="post" action="/logout" onsubmit="return confirm('Bạn có chắc muốn đăng xuất?')">
+        <button type="submit" class="link">Đăng xuất</button>
+      </form>
+    </div>
+  </aside>
+  <main>
+    {% for kind, msg in flashes %}<div class="flash {{ kind }}">{{ msg }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+<main class="plain">
+  {% for kind, msg in flashes %}<div class="flash {{ kind }}">{{ msg }}</div>{% endfor %}
+  {% block plain %}{% endblock %}
+</main>
+{% endif %}
+{% endblock %}
+</body>
+</html>

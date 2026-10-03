@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Điểm lớp {{ classroom.class_code }}{% endblock %}
+{% block content %}
+<h1>Nhập điểm lớp {{ classroom.class_code }}</h1>
+<p class="sub">
+  <a href="/results">← Danh sách lớp</a>
+</p>
+
+<div class="card-form" style="max-width:820px;margin-bottom:16px">
+  <div class="form-row-2col">
+    <div>
+      <div class="hint">Khóa học</div>
+      <b>{{ classroom.course.course_name }}</b> ({{ classroom.course.level }})
+    </div>
+    <div>
+      <div class="hint">Sĩ số</div>
+      <b>{{ classroom.current_students }}/{{ classroom.max_students }}</b>
+    </div>
+  </div>
+</div>
+
+{% if students %}
+<form method="post" action="/results/{{ classroom.class_id }}">
+  <div class="table-scroll">
+    <table>
+      <tr>
+        <th rowspan="2">Mã HV</th>
+        <th rowspan="2">Học viên</th>
+        <th colspan="4" style="text-align:center">Điểm kỹ năng (0-10)</th>
+        <th rowspan="2">Nhận xét</th>
+      </tr>
+      <tr>
+        <th>Nghe</th><th>Nói</th><th>Đọc</th><th>Viết</th>
+      </tr>
+      {% for s in students %}
+      {% set r = existing[s.student_id] if s.student_id in existing else None %}
+      <tr>
+        <td>{{ s.student_code }}</td>
+        <td>{{ s.user.full_name }}</td>
+        <td><input type="number" name="listening_{{ s.student_id }}"
+                   value="{{ '%.1f'|format(r.listening) if r else '' }}"
+                   min="0" max="10" step="0.1" style="width:70px"></td>
+        <td><input type="number" name="speaking_{{ s.student_id }}"
+                   value="{{ '%.1f'|format(r.speaking) if r else '' }}"
+                   min="0" max="10" step="0.1" style="width:70px"></td>
+        <td><input type="number" name="reading_{{ s.student_id }}"
+                   value="{{ '%.1f'|format(r.reading) if r else '' }}"
+                   min="0" max="10" step="0.1" style="width:70px"></td>
+        <td><input type="number" name="writing_{{ s.student_id }}"
+                   value="{{ '%.1f'|format(r.writing) if r else '' }}"
+                   min="0" max="10" step="0.1" style="width:70px"></td>
+        <td>
+          <input type="text" name="comment_{{ s.student_id }}"
+                 value="{{ r.comment if r and r.comment else '' }}"
+                 maxlength="500" placeholder="(tuỳ chọn)"
+                 style="width:100%;min-width:180px;padding:5px 8px;border:1px solid #cfd8dc;border-radius:5px">
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Lưu điểm</button>
+    <a href="/results" class="btn">Quay lại</a>
+  </div>
+  <p class="hint">
+    ⓘ Hệ thống tự tính điểm trung bình và xếp loại. Học viên chưa nhập đủ 4 kỹ năng sẽ bị bỏ qua.
+  </p>
+</form>
+{% else %}
+<div class="flash err">Lớp này chưa có học viên nào.</div>
+<a href="/results" class="btn">Quay lại</a>
+{% endif %}
+{% endblock %}

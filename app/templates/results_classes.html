@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Kết quả học tập{% endblock %}
+{% block content %}
+<h1>Nhập kết quả học tập</h1>
+<p class="sub">Danh sách lớp bạn phụ trách. Nhấn vào lớp để nhập điểm.</p>
+
+<table>
+  <tr>
+    <th>Mã lớp</th><th>Khóa học</th><th>Phòng</th><th>Lịch học</th>
+    <th>Sĩ số</th><th>Đã nhập điểm</th><th>Trạng thái</th><th>Thao tác</th>
+  </tr>
+  {% for c in classes %}
+  {% set s = stats[c.class_id] %}
+  <tr>
+    <td>{{ c.class_code }}</td>
+    <td>{{ c.course.course_name }}</td>
+    <td>{{ c.room or '—' }}</td>
+    <td>{{ schedule_text(c) }}</td>
+    <td>{{ c.current_students }}/{{ c.max_students }}</td>
+    <td>{{ s.n_graded }}/{{ s.n_students }}</td>
+    <td>
+      {% if s.done %}<span class="tag tag-open">Đã đủ</span>
+      {% elif s.n_graded > 0 %}<span class="tag tag-warn">Một phần</span>
+      {% else %}<span class="tag tag-closed">Chưa nhập</span>{% endif %}
+    </td>
+    <td><a href="/results/{{ c.class_id }}" class="btn btn-primary btn-sm">Nhập điểm</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="empty">Bạn chưa được phân công lớp nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

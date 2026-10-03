@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}GV {{ teacher.teacher_code }}{% endblock %}
+{% block content %}
+<h1>{{ teacher.user.full_name }}</h1>
+<p class="sub">{{ teacher.teacher_code }} — {{ teacher.specialization or 'Chưa rõ chuyên môn' }}</p>
+
+<div class="ledger">
+  <div><b>{{ teacher.user.phone }}</b><span>Số điện thoại</span></div>
+  <div><b>{{ teacher.user.email }}</b><span>Email</span></div>
+  <div><b>{{ teacher.degree or '—' }}</b><span>Bằng cấp</span></div>
+  <div><b>{{ classes|length }}</b><span>Lớp đang dạy</span></div>
+  <div><b>{{ total_students }}</b><span>Tổng học viên</span></div>
+  <div>
+    <b>{% if teacher.status == 'active' %}Hoạt động{% else %}Ngừng{% endif %}</b>
+    <span>Trạng thái</span>
+  </div>
+</div>
+
+<h2>Lớp đang phụ trách</h2>
+<table>
+  <tr>
+    <th>Mã lớp</th><th>Khóa học</th><th>Phòng</th><th>Lịch học</th><th>Sĩ số</th><th>Trạng thái</th>
+  </tr>
+  {% for c in classes %}
+  <tr>
+    <td>{{ c.class_code }}</td>
+    <td>{{ c.course.course_name }}</td>
+    <td>{{ c.room or '—' }}</td>
+    <td>{{ schedule_text(c) }}</td>
+    <td>{{ c.current_students }}/{{ c.max_students }}</td>
+    <td>
+      {% if c.status == 'open' %}<span class="tag tag-open">Đang mở</span>
+      {% else %}<span class="tag tag-closed">Đã đóng</span>{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">Giáo viên chưa được phân công lớp nào.</td></tr>
+  {% endfor %}
+</table>
+
+<div class="form-actions">
+  <a href="/teachers/{{ teacher.teacher_id }}/edit" class="btn btn-primary">Sửa thông tin</a>
+  <a href="/classes" class="btn">Quản lý lớp / phân công</a>
+  <a href="/teachers" class="btn">Quay lại</a>
+</div>
+{% endblock %}

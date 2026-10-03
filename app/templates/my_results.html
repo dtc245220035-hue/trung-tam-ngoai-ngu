@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Kết quả học tập{% endblock %}
+{% block content %}
+<h1>Kết quả học tập của tôi</h1>
+<p class="sub">{{ student.student_code }} — {{ student.user.full_name }}</p>
+
+{% if results %}
+<table>
+  <tr>
+    <th>Lớp</th><th>Khóa học</th>
+    <th>Nghe</th><th>Nói</th><th>Đọc</th><th>Viết</th>
+    <th>Trung bình</th><th>Xếp loại</th><th>Nhận xét</th>
+  </tr>
+  {% for r in results %}
+  <tr>
+    <td>{{ r.classroom.class_code }}</td>
+    <td>{{ r.classroom.course.course_name }}</td>
+    <td style="text-align:center">{{ '%.1f'|format(r.listening) }}</td>
+    <td style="text-align:center">{{ '%.1f'|format(r.speaking) }}</td>
+    <td style="text-align:center">{{ '%.1f'|format(r.reading) }}</td>
+    <td style="text-align:center">{{ '%.1f'|format(r.writing) }}</td>
+    <td style="text-align:center"><b>{{ '%.2f'|format(r.average) }}</b></td>
+    <td style="text-align:center">
+      {% if r.rank == 'Xuất sắc' or r.rank == 'Giỏi' %}
+        <span class="tag tag-open">{{ r.rank }}</span>
+      {% elif r.rank == 'Khá' or r.rank == 'Trung bình' %}
+        <span class="tag tag-warn">{{ r.rank }}</span>
+      {% else %}
+        <span class="tag tag-closed">{{ r.rank }}</span>
+      {% endif %}
+    </td>
+    <td>{{ r.comment or '—' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<div class="ledger" style="margin-top:24px">
+  <div>
+    <b>{{ results|length }}</b>
+    <span>Khóa đã có điểm</span>
+  </div>
+  <div>
+    <b>{{ '%.2f'|format(results|sum(attribute='average') / results|length) }}</b>
+    <span>Điểm TB chung</span>
+  </div>
+</div>
+{% else %}
+<div class="flash">Bạn chưa có kết quả học tập nào. Kết quả sẽ hiển thị sau khi giáo viên nhập điểm.</div>
+{% endif %}
+{% endblock %}

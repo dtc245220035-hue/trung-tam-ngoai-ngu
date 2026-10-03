@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}AI sinh bài luyện tập{% endblock %}
+{% block content %}
+<h1>AI sinh bài luyện tập</h1>
+<p class="sub">Chọn chủ đề và trình độ — AI sẽ sinh bài tập ngắn.</p>
+
+{% if not ai_available %}
+<div class="flash" style="background:#fff3e0;color:#e65100">
+  ⚠ Chưa cấu hình GEMINI_API_KEY. Hệ thống sẽ dùng bài tập mẫu.
+</div>
+{% endif %}
+
+<form method="post" action="/ai/exercise" class="card-form" style="max-width:640px">
+  <div class="form-row">
+    <label>Chủ đề <span class="req">*</span></label>
+    <select name="topic" required>
+      <option value="">— Chọn chủ đề —</option>
+      {% for t in topics %}
+      <option value="{{ t }}" {% if t == topic %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row">
+    <label>Trình độ <span class="req">*</span></label>
+    <select name="level" required>
+      <option value="">— Chọn trình độ —</option>
+      {% for lv in ['A1','A2','B1','B2','C1','C2'] %}
+      <option value="{{ lv }}" {% if lv == level %}selected{% endif %}>{{ lv }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row">
+    <label>Số câu hỏi</label>
+    <select name="num">
+      <option value="5" {% if num == 5 %}selected{% endif %}>5 câu</option>
+      <option value="10" {% if num == 10 %}selected{% endif %}>10 câu</option>
+    </select>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">🤖 Sinh bài tập</button>
+    <a href="/dashboard" class="btn">Quay lại</a>
+  </div>
+</form>
+
+{% if result %}
+<div class="card-form" style="max-width:820px;margin-top:24px">
+  <h2 style="margin-top:0">
+    📝 Bài luyện tập: {{ topic }} — Trình độ {{ level }}
+  </h2>
+  {% if used_fallback %}
+  <p class="hint" style="color:#e65100">⚠ AI không phản hồi — đang dùng bài tập mẫu.</p>
+  {% endif %}
+
+  <p class="hint">Chọn đáp án cho từng câu, sau đó bấm <b>"Nộp bài"</b> để xem kết quả.</p>
+
+  <form id="quiz-form" onsubmit="return submitQuiz(event);">
+    {% for e in result %}
+    <div class="exercise-item" data-idx="{{ e.idx }}" data-answer="{{ e.answer }}">
+      <p><b>Câu {{ e.idx }}:</b> {{ e.question }}</p>
+      <div class="options-radio">
+        {% for opt in e.options %}
+        <label class="opt-label">
+          <input type="radio" name="q_{{ e.idx }}" value="{{ opt }}">
+          <span>{{ opt }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="result-box" style="display:none"></div>
+      <details>
+        <summary>Xem đáp án & giải thích</summary>
+        <p><b>Đáp án:</b> <span style="color:#2e7d32">{{ e.answer }}</span></p>
+        <p><b>Giải thích:</b> {{ e.explanation }}</p>
+      </details>
+    </div>
+    {% endfor %}
+
+    <div class="form-actions" style="margin-top:20px">
+      <button type="submit" class="btn btn-primary">📤 Nộp bài</button>
+      <a href="/ai/exercise" class="btn">Làm lại</a>
+    </div>
+  </form>
+
+  <div id="score-box" style="display:none;margin-top:20px;padding:16px;border-radius:8px;background:#f1f8ff;border:1px solid #90caf9">
+    <h3 style="margin-top:0">📊 Kết quả</h3>
+    <p id="score-text" style="font-size:16px;margin:8px 0"></p>
+    <p id="score-detail" style="font-size:14px;color:#546e7a;margin:0"></p>
+  </div>
+</div>
+{% endif %}
+
+<script>
+function submitQuiz(event) {
+  event.preventDefault();
+  const items = document.querySelectorAll('.exercise-item');
+  let correct = 0, total = items.length, unanswered = 0;
+
+  items.forEach((el) => {
+    const idx = el.dataset.idx;
+    const correctAns = el.dataset.answer;
+    const radios = el.querySelectorAll('input[type="radio"]');
+    let picked = null;
+    radios.forEach((r) => { if (r.checked) picked = r.value; });
+
+    // Clear style cũ
+    el.querySelectorAll('.opt-label').forEach((lbl) => {
+      lbl.classList.remove('opt-correct', 'opt-wrong');
+    });
+    const resultBox = el.querySelector('.result-box');
+    resultBox.style.display = 'block';
+
+    if (!picked) {
+      unanswered++;
+      resultBox.innerHTML = '<span style="color:#e65100">⚠ Chưa chọn đáp án</span>';
+      return;
+    }
+
+    // Đánh dấu đáp án đúng
+    radios.forEach((r) => {
+      const label = r.closest('.opt-label');
+      if (r.value === correctAns) {
+        label.classList.add('opt-correct');
+      } else if (r.checked && r.value !== correctAns) {
+        label.classList.add('opt-wrong');
+      }
+    });
+
+    if (picked === correctAns) {
+      correct++;
+      resultBox.innerHTML = '<span style="color:#2e7d32">✅ Đúng</span>';
+    } else {
+      resultBox.innerHTML = '<span style="color:#c62828">❌ Sai — đáp án đúng: <b>'
+                          + correctAns + '</b></span>';
+    }
+  });
+
+  const scoreBox = document.getElementById('score-box');
+  const scoreText = document.getElementById('score-text');
+  const scoreDetail = document.getElementById('score-detail');
+  const pct = Math.round(correct / total * 100);
+  let rank = pct >= 90 ? '🏆 Xuất sắc' : pct >= 70 ? '🎉 Tốt' :
+             pct >= 50 ? '👍 Khá' : '💪 Cần cố gắng';
+
+  scoreText.innerHTML = '<b style="font-size:20px;color:#1976d2">' + correct + '/' + total
+                       + '</b> câu đúng (' + pct + '%) — ' + rank;
+  scoreDetail.textContent = unanswered > 0
+    ? '⚠ Bạn chưa trả lời ' + unanswered + ' câu.'
+    : 'Đã trả lời đầy đủ ' + total + ' câu.';
+
+  scoreBox.style.display = 'block';
+  scoreBox.scrollIntoView({behavior: 'smooth'});
+  return false;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Thêm' if mode == 'new' else 'Sửa' }} khóa học{% endblock %}
+{% block content %}
+<h1>{{ 'Thêm khóa học mới' if mode == 'new' else 'Sửa khóa học ' ~ course.course_code }}</h1>
+
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<form method="post" class="card-form">
+  <div class="form-row">
+    <label>Tên khóa học <span class="req">*</span></label>
+    <input type="text" name="course_name" value="{{ form.course_name or '' }}"
+           required maxlength="100" placeholder="VD: Tiếng Anh giao tiếp A1">
+  </div>
+  <div class="form-row">
+    <label>Trình độ <span class="req">*</span></label>
+    <select name="level" required>
+      <option value="">— Chọn trình độ —</option>
+      {% for lv in levels %}
+      <option value="{{ lv }}" {% if lv == form.level %}selected{% endif %}>{{ lv }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row">
+    <label>Học phí (VNĐ) <span class="req">*</span></label>
+    <input type="number" name="tuition_fee" value="{{ form.tuition_fee or '' }}"
+           required min="1" step="1" placeholder="VD: 3200000">
+  </div>
+  <div class="form-row">
+    <label>Thời lượng (số buổi) <span class="req">*</span></label>
+    <input type="number" name="duration" value="{{ form.duration or '' }}"
+           required min="1" placeholder="VD: 24">
+  </div>
+  <div class="form-row">
+    <label>Mô tả</label>
+    <textarea name="description" rows="3" maxlength="500"
+              placeholder="Mô tả ngắn về khóa học">{{ form.description or '' }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a href="/courses" class="btn">Hủy</a>
+  </div>
+</form>
+{% endblock %}

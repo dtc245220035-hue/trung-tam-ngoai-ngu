@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Tạo' if mode == 'new' else 'Sửa' }} lớp{% endblock %}
+{% block content %}
+<h1>{{ 'Tạo lớp mới' if mode == 'new' else 'Sửa lớp ' ~ classroom.class_code }}</h1>
+
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<form method="post" class="card-form" id="class-form">
+  <div class="form-row">
+    <label>Khóa học <span class="req">*</span></label>
+    <select name="course_id" required>
+      <option value="">— Chọn khóa học —</option>
+      {% for c in courses %}
+      <option value="{{ c.course_id }}" {% if c.course_id == form.course_id %}selected{% endif %}>
+        {{ c.course_code }} — {{ c.course_name }} ({{ c.level }})
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label>Giáo viên</label>
+    <select name="teacher_id">
+      <option value="">— Chưa phân công —</option>
+      {% for t in teachers %}
+      <option value="{{ t.teacher_id }}" {% if t.teacher_id == form.teacher_id %}selected{% endif %}>
+        {{ t.teacher_code }} — {{ t.user.full_name }} ({{ t.specialization or '—' }})
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label>Phòng học</label>
+    <input type="text" name="room" value="{{ form.room or '' }}" maxlength="20" placeholder="VD: P101">
+  </div>
+
+  <div class="form-row">
+    <label>Sĩ số tối đa <span class="req">*</span></label>
+    <input type="number" name="max_students" value="{{ form.max_students or 15 }}"
+           required min="1" max="30">
+  </div>
+
+  <div class="form-row-2col">
+    <div class="form-row">
+      <label>Ngày bắt đầu <span class="req">*</span></label>
+      <input type="date" name="start_date" value="{{ form.start_date or '' }}" required>
+    </div>
+    <div class="form-row">
+      <label>Ngày kết thúc <span class="req">*</span></label>
+      <input type="date" name="end_date" value="{{ form.end_date or '' }}" required>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>Trạng thái</label>
+    <select name="status">
+      <option value="open" {% if form.status == 'open' or not form.status %}selected{% endif %}>Đang mở</option>
+      <option value="closed" {% if form.status == 'closed' %}selected{% endif %}>Đã đóng</option>
+    </select>
+  </div>
+
+  <h3>Lịch học <span class="req">*</span></h3>
+  <p class="hint">Mỗi lớp có thể có nhiều buổi/tuần. Ví dụ: Thứ 2 + Thứ 4 cùng giờ.</p>
+
+  <div id="schedules">
+    {% for s in form_schedules %}
+    <div class="sched-row">
+      <select name="day_of_week">
+        {% for d in days %}
+        <option value="{{ d }}" {% if d == s.day %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+      <input type="time" name="start_time" value="{{ s.start }}" required>
+      <input type="time" name="end_time" value="{{ s.end }}" required>
+      <button type="button" class="btn-sm btn-danger" onclick="removeRow(this)">Xóa</button>
+    </div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn" onclick="addRow()">+ Thêm buổi</button>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a href="/classes" class="btn">Hủy</a>
+  </div>
+</form>
+
+<script>
+function addRow() {
+  const wrap = document.getElementById('schedules');
+  const first = wrap.querySelector('.sched-row');
+  if (!first) return;
+  const row = first.cloneNode(true);
+  row.querySelectorAll('input[type="time"]').forEach(i => i.value = '');
+  wrap.appendChild(row);
+}
+function removeRow(btn) {
+  const wrap = document.getElementById('schedules');
+  if (wrap.querySelectorAll('.sched-row').length <= 1) {
+    alert('Phải có ít nhất 1 buổi học');
+    return;
+  }
+  btn.closest('.sched-row').remove();
+}
+</script>
+{% endblock %}

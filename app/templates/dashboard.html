@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Tổng quan{% endblock %}
+{% block content %}
+<h1>Xin chào, {{ user.full_name }}</h1>
+<p class="sub">{{ ROLE_LABEL[user.role] }}</p>
+
+{% if user.role == 'admin' %}
+<div class="ledger">
+  <div><b>{{ n_students }}</b><span>Học viên</span></div>
+  <div><b>{{ n_teachers }}</b><span>Giáo viên</span></div>
+  <div><b>{{ n_courses }}</b><span>Khóa học</span></div>
+  <div><b>{{ n_open }}</b><span>Lớp đang mở</span></div>
+  <div><b>{{ revenue|vnd }}</b><span>Đã thu</span></div>
+  <div><b>{{ debt|vnd }}</b><span>Công nợ</span></div>
+</div>
+{% elif user.role == 'consultant' %}
+<div class="ledger">
+  <div><b>{{ n_students }}</b><span>Học viên</span></div>
+  <div><b>{{ n_open }}</b><span>Lớp đang mở</span></div>
+  <div><b>{{ seats }}</b><span>Chỗ còn trống</span></div>
+  <div><b>{{ n_owing }}</b><span>Hóa đơn chưa đóng đủ</span></div>
+</div>
+{% elif user.role == 'teacher' %}
+<div class="ledger">
+  <div><b>{{ my_classes|length }}</b><span>Lớp phụ trách</span></div>
+  <div><b>{{ n_my_students }}</b><span>Học viên đang dạy</span></div>
+</div>
+{% else %}
+<div class="ledger">
+  <div><b>{{ student.level or 'Chưa rõ' }}</b><span>Trình độ hiện tại</span></div>
+  <div><b>{{ my_classes|length }}</b><span>Lớp đang học</span></div>
+  <div><b>{{ owing|length }}</b><span>Hóa đơn còn nợ</span></div>
+</div>
+{% endif %}
+
+{% if user.role in ('admin', 'consultant') %}
+<h2>Lớp đang mở</h2>
+<table>
+  <tr><th>Mã lớp</th><th>Khóa học</th><th>Giáo viên</th><th>Lịch học</th><th>Sĩ số</th></tr>
+  {% for c in open_classes %}
+  <tr>
+    <td>{{ c.class_code }}</td><td>{{ c.course.course_name }}</td>
+    <td>{{ c.teacher.user.full_name if c.teacher else 'Chưa phân công' }}</td>
+    <td>{{ schedule_text(c) }}</td><td>{{ c.current_students }}/{{ c.max_students }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">Chưa có lớp nào đang mở.</td></tr>
+  {% endfor %}
+</table>
+{% elif user.role == 'teacher' %}
+<h2>Lớp của tôi</h2>
+<table>
+  <tr><th>Mã lớp</th><th>Khóa học</th><th>Phòng</th><th>Lịch dạy</th><th>Sĩ số</th></tr>
+  {% for c in my_classes %}
+  <tr>
+    <td>{{ c.class_code }}</td><td>{{ c.course.course_name }}</td><td>{{ c.room }}</td>
+    <td>{{ schedule_text(c) }}</td><td>{{ c.current_students }}/{{ c.max_students }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">Bạn chưa được phân công lớp nào.</td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<h2>Lớp đang học</h2>
+<table>
+  <tr><th>Mã lớp</th><th>Khóa học</th><th>Phòng</th><th>Lịch học</th></tr>
+  {% for c in my_classes %}
+  <tr><td>{{ c.class_code }}</td><td>{{ c.course.course_name }}</td><td>{{ c.room }}</td><td>{{ schedule_text(c) }}</td></tr>
+  {% else %}
+  <tr><td colspan="4">Bạn chưa đăng ký lớp nào.</td></tr>
+  {% endfor %}
+</table>
+{% if owing %}
+<h2>Học phí còn nợ</h2>
+<table>
+  <tr><th>Hóa đơn</th><th>Lớp</th><th>Tổng tiền</th><th>Đã nộp</th><th>Còn nợ</th></tr>
+  {% for i in owing %}
+  <tr><td>{{ i.invoice_code }}</td><td>{{ i.classroom.class_code }}</td><td>{{ i.total_amount|vnd }}</td><td>{{ i.paid_amount|vnd }}</td><td>{{ i.remaining_amount|vnd }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endif %}
+{% endblock %}

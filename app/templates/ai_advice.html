@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}AI tư vấn lớp học{% endblock %}
+{% block content %}
+<h1>AI tư vấn lớp học</h1>
+<p class="sub">Gợi ý lớp học phù hợp dựa trên trình độ và thời gian rảnh của học viên.</p>
+
+{% if not ai_available %}
+<div class="flash" style="background:#fff3e0;color:#e65100">
+  ⚠ Chưa cấu hình GEMINI_API_KEY. Hệ thống sẽ dùng phương án dự phòng (Rule-based).
+</div>
+{% endif %}
+
+<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+  <form method="post" action="/ai/advice" class="card-form" style="max-width:520px;flex:1;min-width:320px">
+    <div class="form-row">
+      <label>Trình độ học viên <span class="req">*</span></label>
+      <select name="level" required>
+        <option value="">— Chọn trình độ —</option>
+        {% for lv in ['A1','A2','B1','B2','C1','C2'] %}
+        <option value="{{ lv }}" {% if lv == level %}selected{% endif %}>
+          Trình độ {{ lv }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label>Lịch rảnh mong muốn</label>
+      <input type="text" name="availability" value="{{ availability }}"
+             placeholder="VD: Tối 2-4-6, Cuối tuần, Sau 18h...">
+      <p class="hint">Để trống nếu thời gian học linh hoạt.</p>
+    </div>
+
+    <p class="hint">
+      Hiện có <b>{{ n_classes }}</b> lớp học đang mở tuyển sinh.
+    </p>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">🤖 Gợi ý lớp học</button>
+      <a href="/dashboard" class="btn">Quay lại</a>
+    </div>
+  </form>
+
+  {% if result %}
+  <div class="card-form" style="max-width:540px;flex:1;min-width:320px;background:#f8fafc;border-color:#cbd5e1">
+    <h2 style="margin-top:0;font-size:18px">💡 Kết quả tư vấn</h2>
+    {% if used_fallback %}
+    <p class="hint" style="color:#e65100">⚠ AI không phản hồi — đang dùng kết quả gợi ý theo quy tắc.</p>
+    {% endif %}
+
+    <div class="md-content">{{ result|md|safe }}</div>
+
+    <div style="margin-top:20px;padding-top:14px;border-top:1px dashed #cbd5e1">
+      <a href="/enroll/new" class="btn btn-primary" style="font-size:13.5px">+ Chuyển sang Đăng ký học</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
