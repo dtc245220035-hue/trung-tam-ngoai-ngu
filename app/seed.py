@@ -1,9 +1,10 @@
-from datetime import date, time
+from datetime import date, datetime, time
 
 from sqlalchemy.orm import Session
 
-from .models import (Attendance, ClassRoom, Course, Enrollment, Invoice, Payment,
-                     Result, Schedule, Student, Teacher, User)
+from .models import (Attendance, ClassRoom, Course, Enrollment, Facility,
+                     Invoice, Payment, Policy, Result, Salary, Schedule,
+                     Student, Teacher, User)
 from .security import hash_password
 from .utils import rank_for
 
@@ -132,4 +133,78 @@ def seed(db: Session) -> None:
         db.add(Result(student_id=students[si].student_id, class_id=classes[ci].class_id,
                       listening=l, speaking=s, reading=r, writing=w,
                       average=avg, rank=rank_for(avg), comment=cmt))
+
+    # ============ Cơ sở vật chất mẫu ============
+    facility_rows = [
+        ("Phòng học P101", "room", "P101", 1, 0, "Phòng học tiêu chuẩn 15 chỗ"),
+        ("Phòng học P102", "room", "P102", 1, 0, "Phòng học tiêu chuẩn 15 chỗ"),
+        ("Phòng học P201", "room", "P201", 1, 0, "Phòng học lớn 20 chỗ"),
+        ("Phòng học P202", "room", "P202", 1, 0, "Phòng học lớn 20 chỗ"),
+        ("Máy chiếu Epson", "equipment", None, 4, 8500000, "Máy chiếu cho phòng học"),
+        ("Bảng tương tác", "equipment", None, 2, 25000000, "Bảng tương tác thông minh"),
+        ("Máy tính bàn", "equipment", None, 10, 12000000, "Máy tính cho phòng lab"),
+        ("Tai nghe học ngoại ngữ", "equipment", None, 30, 350000, "Tai nghe chuyên dụng"),
+    ]
+    for i, (name, ftype, room, qty, price, note) in enumerate(facility_rows, 1):
+        db.add(Facility(
+            facility_code=f"CS{i:04d}",
+            facility_name=name,
+            facility_type=ftype,
+            room=room,
+            quantity=qty,
+            unit_price=price,
+            purchase_date=date(2025, 6, 1),
+            status="active",
+            note=note,
+        ))
+
+    # ============ Lương GV mẫu (3 tháng) ============
+    for t_idx, t in enumerate(teachers):
+        for m_idx, month in enumerate(["2026-09", "2026-10", "2026-11"]):
+            base = 8000000 if t_idx < 2 else 7000000
+            hours = 40 + t_idx * 5 + m_idx * 2
+            hourly = 150000
+            bonus = 500000 if (t_idx == 0 and m_idx == 2) else 0
+            deduction = 200000 if m_idx == 1 else 0
+            total = base + hours * hourly + bonus - deduction
+            paid_date_val = None
+            if month == "2026-09":
+                paid_date_val = datetime(2026, 10, 5)
+            elif month == "2026-10":
+                paid_date_val = datetime(2026, 11, 5)
+            db.add(Salary(
+                teacher_id=t.teacher_id,
+                month=month,
+                base_salary=base,
+                teaching_hours=hours,
+                hourly_rate=hourly,
+                bonus=bonus,
+                deduction=deduction,
+                total_salary=total,
+                status="paid" if month != "2026-11" else "pending",
+                paid_date=paid_date_val,
+                note=f"Lương tháng {month}",
+            ))
+
+    # ============ Chính sách ưu đãi mẫu ============
+    policy_rows = [
+        ("Giảm 20% HV khó khăn", "percent", 20,
+         "Giảm 20% học phí cho học viên có hoàn cảnh khó khăn (có xác nhận)"),
+        ("Giảm 10% HV đăng ký sớm", "percent", 10,
+         "Giảm 10% khi đăng ký trước khai giảng 2 tuần"),
+        ("Miễn giảm 500K HV khuyết tật", "fixed", 500000,
+         "Hỗ trợ 500.000đ cho học viên khuyết tật"),
+        ("Ưu đãi HV giỏi", "percent", 15,
+         "Giảm 15% cho học viên có thành tích học tập tốt"),
+    ]
+    for i, (name, dtype, dvalue, desc) in enumerate(policy_rows, 1):
+        db.add(Policy(
+            policy_code=f"CS{i:04d}",
+            policy_name=name,
+            discount_type=dtype,
+            discount_value=dvalue,
+            description=desc,
+            status="active",
+        ))
+
     db.commit()

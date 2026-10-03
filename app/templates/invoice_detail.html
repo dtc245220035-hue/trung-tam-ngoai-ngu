@@ -21,8 +21,18 @@
       — {{ inv.classroom.course.course_name }}
     </div>
     <div>
-      <div class="hint">Học phí</div>
+      <div class="hint">Học phí gốc</div>
       <b>{{ inv.total_amount | vnd }}</b>
+    </div>
+    <div>
+      <div class="hint">Giảm giá</div>
+      <b style="color:#2e7d32">
+        {% if inv.discount_amount > 0 %}-{{ inv.discount_amount | vnd }}{% else %}—{% endif %}
+      </b>
+    </div>
+    <div>
+      <div class="hint">Số tiền phải thu</div>
+      <b style="color:#1976d2">{{ inv.final_amount | vnd }}</b>
     </div>
     <div>
       <div class="hint">Đã đóng</div>
@@ -40,8 +50,44 @@
       {% elif inv.status == 'partial' %}<span class="tag tag-warn">Đóng một phần</span>
       {% else %}<span class="tag tag-closed">Chưa đóng</span>{% endif %}
     </div>
+    {% if inv.policy %}
+    <div style="grid-column: span 2">
+      <div class="hint">Chính sách đang áp dụng</div>
+      <b style="color:#2e7d32">🎁 {{ inv.policy.policy_name }}</b>
+      <span style="color:#78909c">({{ inv.policy.policy_code }})</span>
+    </div>
+    {% endif %}
   </div>
 </div>
+
+<!-- Áp dụng chính sách ưu đãi -->
+{% if inv.paid_amount == 0 and inv.status != 'paid' %}
+<div class="card-form" style="max-width:720px;margin-bottom:24px;background:#f9fbe7;border-color:#c5e1a5">
+  <h2 style="margin-top:0">🎁 Áp dụng chính sách ưu đãi</h2>
+  <p class="hint">Chỉ áp dụng được khi học viên chưa thanh toán lần nào.</p>
+
+  <form method="post" action="/invoices/{{ inv.invoice_id }}/apply-policy" class="toolbar">
+    <select name="policy_id" style="flex:1;min-width:280px">
+      <option value="none">— Không áp dụng chính sách —</option>
+      {% for p in policies %}
+      <option value="{{ p.policy_id }}"
+              {% if inv.policy_id == p.policy_id %}selected{% endif %}>
+        {{ p.policy_code }} — {{ p.policy_name }}
+        ({% if p.discount_type == 'percent' %}giảm {{ p.discount_value }}%{% else %}giảm {{ p.discount_value|vnd }}{% endif %})
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">Áp dụng</button>
+  </form>
+
+  {% if inv.discount_amount > 0 %}
+  <p class="hint" style="margin-top:8px">
+    ⓘ Hiện đang giảm <b style="color:#2e7d32">{{ inv.discount_amount|vnd }}</b>
+    → Phải thu: <b>{{ inv.final_amount|vnd }}</b>
+  </p>
+  {% endif %}
+</div>
+{% endif %}
 
 <!-- Lịch sử thanh toán -->
 <h2>Lịch sử thanh toán</h2>
@@ -117,9 +163,9 @@
 
 <script>
 (function () {
-  const BANK    = 'MB';          // Mã ngân hàng VietQR
-  const ACCOUNT = '0123456789';  // Số tài khoản
-  const ACNAME  = 'TRUNG TAM NGOAI NGU'; // Tên chủ TK (không dấu)
+  const BANK    = 'MB';
+  const ACCOUNT = '0123456789';
+  const ACNAME  = 'TRUNG TAM NGOAI NGU';
 
   const methodSel  = document.getElementById('methodSelect');
   const amountInp  = document.getElementById('amountInput');
@@ -135,7 +181,7 @@
     if (!isTransfer) return;
 
     const amount = parseInt(amountInp.value) || 0;
-    const note   = noteInp.value.trim() || ('Hoc phi ' + '{{ inv.invoice_code }}');
+    const note   = noteInp.value.trim() || ('Hoc phi {{ inv.invoice_code }}');
     const url = `https://img.vietqr.io/image/${BANK}-${ACCOUNT}-compact2.jpg`
               + `?amount=${amount}&addInfo=${encodeURIComponent(note)}&accountName=${encodeURIComponent(ACNAME)}`;
 
@@ -147,8 +193,6 @@
   methodSel.addEventListener('change', updateQR);
   amountInp.addEventListener('input',  updateQR);
   noteInp.addEventListener('input',    updateQR);
-
-  // Khởi tạo nếu đang ở transfer
   updateQR();
 })();
 </script>

@@ -14,18 +14,21 @@ from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from .ai import router as ai_router                              # ← THÊM
+from .ai import router as ai_router
 from .attendance import router as attendance_router
 from .classes import router as classes_router
 from .courses import router as courses_router
 from .database import Base, SessionLocal, engine, get_db
 from .deps import RedirectToLogin, current_user
 from .enrollments import router as enrollments_router
+from .facilities import router as facilities_router
 from .invoices import router as invoices_router
 from .lookup import router as lookup_router
 from .models import ClassRoom, Course, Enrollment, Invoice, Student, Teacher, User
+from .policies import router as policies_router
 from .results import student_router as my_results_router
 from .results import teacher_router as results_router
+from .salaries import router as salaries_router
 from .security import verify_password
 from .seed import seed
 from .self_service import router as self_service_router
@@ -63,7 +66,10 @@ app.include_router(my_results_router)
 app.include_router(self_service_router)
 app.include_router(lookup_router)
 app.include_router(stats_router)
-app.include_router(ai_router)                                    # ← THÊM
+app.include_router(ai_router)
+app.include_router(facilities_router)
+app.include_router(salaries_router)
+app.include_router(policies_router)
 
 
 @app.exception_handler(RedirectToLogin)
@@ -156,7 +162,7 @@ def dashboard_data(db: Session, user: User) -> dict:
         data["n_open"] = len(data["open_classes"])
         data["revenue"] = db.query(func.coalesce(func.sum(Invoice.paid_amount), 0)).scalar()
         data["debt"] = db.query(
-            func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), 0)).scalar()
+            func.coalesce(func.sum(Invoice.total_amount - Invoice.discount_amount - Invoice.paid_amount), 0)).scalar()
     if user.role == "consultant":
         data["n_open"] = len(data["open_classes"])
         data["seats"] = sum(c.seats_left for c in data["open_classes"])

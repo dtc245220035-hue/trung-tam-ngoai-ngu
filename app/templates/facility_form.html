@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Thêm' if mode == 'new' else 'Sửa' }} CSVC{% endblock %}
+{% block content %}
+<h1>{{ 'Thêm cơ sở vật chất' if mode == 'new' else 'Sửa ' ~ facility.facility_code }}</h1>
+
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<form method="post" class="card-form">
+  <div class="form-row">
+    <label>Tên <span class="req">*</span></label>
+    <input type="text" name="facility_name" value="{{ form.facility_name or '' }}"
+           required maxlength="100" placeholder="VD: Phòng học P101, Máy chiếu Epson">
+  </div>
+
+  <div class="form-row">
+    <label>Loại <span class="req">*</span></label>
+    <select name="facility_type" required>
+      <option value="room" {% if form.facility_type == 'room' %}selected{% endif %}>🏫 Phòng học</option>
+      <option value="equipment" {% if form.facility_type == 'equipment' or not form.facility_type %}selected{% endif %}>🔧 Thiết bị</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label>Phòng (nếu là thiết bị đặt trong phòng)</label>
+    <input type="text" name="room" value="{{ form.room or '' }}" maxlength="20" placeholder="VD: P101">
+  </div>
+
+  <div class="form-row-2col">
+    <div class="form-row">
+      <label>Số lượng <span class="req">*</span></label>
+      <input type="number" name="quantity" value="{{ form.quantity or 1 }}" required min="1">
+    </div>
+    <div class="form-row">
+      <label>Đơn giá (VNĐ) <span class="req">*</span></label>
+      <input type="number" name="unit_price" value="{{ form.unit_price or 0 }}"
+             required min="0" step="1000">
+    </div>
+  </div>
+
+  <div class="form-row-2col">
+    <div class="form-row">
+      <label>Ngày mua</label>
+      <input type="date" name="purchase_date" value="{{ form.purchase_date or '' }}">
+    </div>
+    <div class="form-row">
+      <label>Trạng thái</label>
+      <select name="status">
+        <option value="active" {% if form.status == 'active' or not form.status %}selected{% endif %}>Đang dùng</option>
+        <option value="broken" {% if form.status == 'broken' %}selected{% endif %}>Hỏng</option>
+        <option value="disposed" {% if form.status == 'disposed' %}selected{% endif %}>Thanh lý</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>Ghi chú</label>
+    <textarea name="note" rows="2" maxlength="255">{{ form.note or '' }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a href="/facilities" class="btn">Hủy</a>
+  </div>
+</form>
+{% endblock %}

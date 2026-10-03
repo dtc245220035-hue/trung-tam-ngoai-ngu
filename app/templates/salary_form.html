@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Tạo' if mode == 'new' else 'Sửa' }} bảng lương{% endblock %}
+{% block content %}
+<h1>{{ 'Tạo bảng lương mới' if mode == 'new' else 'Sửa bảng lương ' ~ salary.month }}</h1>
+
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<form method="post" class="card-form">
+  <div class="form-row">
+    <label>Giáo viên <span class="req">*</span></label>
+    <select name="teacher_id" required>
+      <option value="">— Chọn giáo viên —</option>
+      {% for t in teachers %}
+      <option value="{{ t.teacher_id }}"
+              {% if t.teacher_id == form.teacher_id %}selected{% endif %}>
+        {{ t.teacher_code }} — {{ t.user.full_name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label>Tháng <span class="req">*</span></label>
+    <input type="month" name="month" value="{{ form.month or '' }}" required>
+    <p class="hint">Định dạng YYYY-MM (VD: 2026-11)</p>
+  </div>
+
+  <div class="form-row-2col">
+    <div class="form-row">
+      <label>Lương cơ bản (VNĐ)</label>
+      <input type="number" name="base_salary" value="{{ form.base_salary or 0 }}" min="0" step="100000">
+    </div>
+    <div class="form-row">
+      <label>Đơn giá/giờ (VNĐ)</label>
+      <input type="number" name="hourly_rate" value="{{ form.hourly_rate or 0 }}" min="0" step="10000">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>Số giờ dạy</label>
+    <input type="number" name="teaching_hours" value="{{ form.teaching_hours or 0 }}"
+           min="0" step="0.5">
+  </div>
+
+  <div class="form-row-2col">
+    <div class="form-row">
+      <label>Thưởng (VNĐ)</label>
+      <input type="number" name="bonus" value="{{ form.bonus or 0 }}" min="0" step="100000">
+    </div>
+    <div class="form-row">
+      <label>Khấu trừ (VNĐ)</label>
+      <input type="number" name="deduction" value="{{ form.deduction or 0 }}" min="0" step="100000">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>Ghi chú</label>
+    <input type="text" name="note" value="{{ form.note or '' }}" maxlength="255">
+  </div>
+
+  <p class="hint">ⓘ Tổng lương = Lương CB + (Giờ dạy × Đơn giá) + Thưởng − Khấu trừ</p>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a href="/salaries" class="btn">Hủy</a>
+  </div>
+</form>
+{% endblock %}

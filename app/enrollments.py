@@ -119,18 +119,19 @@ def create_enrollment(request: Request,
     classroom.current_students += 1
     db.flush()
 
-    # Tự sinh hóa đơn
+    # Tự sinh hóa đơn (discount=0 mặc định)
     total = classroom.course.tuition_fee
     inv = Invoice(invoice_code=_next_invoice_code(db),
                   student_id=student_id,
                   class_id=class_id,
                   total_amount=total,
+                  discount_amount=0,
                   paid_amount=0,
+                  policy_id=None,
                   status="unpaid")
     db.add(inv)
     db.commit()
 
-    # Kiểm tra lệch trình độ → cảnh báo nhưng đã đăng ký thành công
     warning = ""
     if student.level and student.level != classroom.course.level:
         warning = (f" Lưu ý: trình độ HV ({student.level}) khác trình độ khóa "
@@ -151,7 +152,6 @@ def cancel_enrollment(enrollment_id: int,
     if not e or e.status != "active":
         return render(request, "404.html", user=user, status_code=404)
 
-    # Check hóa đơn tương ứng
     inv = (db.query(Invoice)
            .filter(Invoice.student_id == e.student_id,
                    Invoice.class_id == e.class_id)
@@ -163,10 +163,8 @@ def cancel_enrollment(enrollment_id: int,
                        f"Vui lòng xử lý hoàn tiền trước.", kind="err")
         return RedirectResponse("/enroll", status_code=303)
 
-    # Hủy đăng ký
     e.status = "cancelled"
     e.classroom.current_students = max(0, e.classroom.current_students - 1)
-    # Xóa hóa đơn nếu chưa đóng
     if inv and inv.paid_amount == 0:
         db.delete(inv)
     db.commit()

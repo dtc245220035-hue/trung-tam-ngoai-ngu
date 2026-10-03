@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Chính sách ưu đãi{% endblock %}
+{% block content %}
+<h1>Chính sách ưu đãi</h1>
+
+<form method="get" action="/policies" class="toolbar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo mã, tên chính sách...">
+  <select name="status">
+    <option value="">Tất cả trạng thái</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Đang áp dụng</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Đã tắt</option>
+  </select>
+  <button type="submit" class="btn">Tìm</button>
+  <a href="/policies/new" class="btn btn-primary">+ Thêm chính sách</a>
+</form>
+
+<table>
+  <tr>
+    <th>Mã</th><th>Tên chính sách</th><th>Loại giảm</th>
+    <th>Giá trị</th><th>Mô tả</th><th>Đã áp dụng</th>
+    <th>Trạng thái</th><th>Thao tác</th>
+  </tr>
+  {% for p in policies %}
+  <tr>
+    <td>{{ p.policy_code }}</td>
+    <td>{{ p.policy_name }}</td>
+    <td>
+      {% if p.discount_type == 'percent' %}📊 Phần trăm
+      {% else %}💰 Số tiền cố định{% endif %}
+    </td>
+    <td style="text-align:right">
+      {% if p.discount_type == 'percent' %}
+        <b style="color:#2e7d32">{{ p.discount_value }}%</b>
+      {% else %}
+        <b style="color:#2e7d32">{{ p.discount_value|vnd }}</b>
+      {% endif %}
+    </td>
+    <td style="max-width:260px;font-size:13px">{{ p.description or '—' }}</td>
+    <td style="text-align:center">
+      {% set u = usage[p.policy_id] %}
+      {% if u > 0 %}
+        <b style="color:#1976d2">{{ u }}</b> hóa đơn
+      {% else %}—{% endif %}
+    </td>
+    <td>
+      {% if p.status == 'active' %}<span class="tag tag-open">Đang áp dụng</span>
+      {% else %}<span class="tag tag-closed">Đã tắt</span>{% endif %}
+    </td>
+    <td class="actions">
+      <a href="/policies/{{ p.policy_id }}/edit" class="btn-sm">Sửa</a>
+      <form method="post" action="/policies/{{ p.policy_id }}/toggle" class="inline">
+        <button type="submit" class="btn-sm">
+          {{ 'Tắt' if p.status == 'active' else 'Bật' }}
+        </button>
+      </form>
+      <form method="post" action="/policies/{{ p.policy_id }}/delete" class="inline"
+            onsubmit="return confirm('Xóa chính sách {{ p.policy_name }}?')">
+        <button type="submit" class="btn-sm btn-danger">Xóa</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="empty">Chưa có chính sách nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

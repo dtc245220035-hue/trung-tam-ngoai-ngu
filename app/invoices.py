@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .deps import require_roles
-from .models import ClassRoom, Invoice, Payment, Student, User
+from .models import ClassRoom, Invoice, Payment, Policy, Student, User
 from .web import flash, render
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -50,7 +50,14 @@ def invoice_detail(invoice_id: int,
     inv = db.get(Invoice, invoice_id)
     if not inv:
         return render(request, "404.html", user=user, status_code=404)
-    return render(request, "invoice_detail.html", user=user, inv=inv)
+
+    # Danh sách policy active để áp dụng
+    policies = (db.query(Policy)
+                .filter(Policy.status == "active")
+                .order_by(Policy.policy_code).all())
+
+    return render(request, "invoice_detail.html", user=user,
+                  inv=inv, policies=policies)
 
 
 @router.post("/{invoice_id}/pay")
@@ -84,8 +91,8 @@ def record_payment(invoice_id: int,
     db.add(pmt)
 
     inv.paid_amount += amount
-    if inv.paid_amount >= inv.total_amount:
-        inv.paid_amount = inv.total_amount
+    if inv.paid_amount >= inv.final_amount:
+        inv.paid_amount = inv.final_amount
         inv.status = "paid"
     else:
         inv.status = "partial"
@@ -94,4 +101,43 @@ def record_payment(invoice_id: int,
     flash(request, f"Đã ghi nhận thanh toán {amount:,.0f} đ cho hóa đơn "
                    f"{inv.invoice_code}. "
                    f"{'Đã thanh toán đủ.' if inv.status == 'paid' else f'Còn lại: {inv.remaining_amount:,.0f} đ.'}")
+    return RedirectResponse(f"/invoices/{invoice_id}", status_code=303)
+
+
+@router.post("/{invoice_id}/apply-policy")
+def apply_policy(invoice_id: int,
+                 request: Request,
+                 policy_id: str = Form(""),
+                 user: User = Depends(require_roles("admin", "consultant")),
+                 db: Session = Depends(get_db)):
+    """Áp dụng hoặc bỏ chính sách giảm giá cho hóa đơn."""
+    inv = db.get(Invoice, invoice_id)
+    if not inv:
+        return render(request, "404.html", user=user, status_code=404)
+
+    if inv.paid_amount > 0:
+        flash(request, "Không thể đổi chính sách khi học viên đã thanh toán.", kind="err")
+        return RedirectResponse(f"/invoices/{invoice_id}", status_code=303)
+
+    if not policy_id or policy_id == "none":
+        inv.policy_id = None
+        inv.discount_amount = 0
+        inv.status = "unpaid"
+        db.commit()
+        flash(request, "Đã bỏ chính sách giảm giá.")
+        return RedirectResponse(f"/invoices/{invoice_id}", status_code=303)
+
+    policy = db.get(Policy, int(policy_id))
+    if not policy or policy.status != "active":
+        flash(request, "Chính sách không hợp lệ.", kind="err")
+        return RedirectResponse(f"/invoices/{invoice_id}", status_code=303)
+
+    discount = policy.apply_to(inv.total_amount)
+    inv.policy_id = policy.policy_id
+    inv.discount_amount = discount
+    db.commit()
+
+    flash(request, f"Đã áp dụng '{policy.policy_name}'. "
+                   f"Giảm {discount:,.0f} đ. "
+                   f"Số tiền phải thu: {inv.final_amount:,.0f} đ.")
     return RedirectResponse(f"/invoices/{invoice_id}", status_code=303)

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Thêm' if mode == 'new' else 'Sửa' }} chính sách{% endblock %}
+{% block content %}
+<h1>{{ 'Thêm chính sách ưu đãi' if mode == 'new' else 'Sửa chính sách ' ~ policy.policy_code }}</h1>
+
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<form method="post" class="card-form">
+  <div class="form-row">
+    <label>Tên chính sách <span class="req">*</span></label>
+    <input type="text" name="policy_name" value="{{ form.policy_name or '' }}"
+           required maxlength="100"
+           placeholder="VD: Giảm 20% học viên khó khăn">
+  </div>
+
+  <div class="form-row-2col">
+    <div class="form-row">
+      <label>Loại giảm <span class="req">*</span></label>
+      <select name="discount_type" required>
+        <option value="percent" {% if form.discount_type == 'percent' or not form.discount_type %}selected{% endif %}>📊 Phần trăm (%)</option>
+        <option value="fixed" {% if form.discount_type == 'fixed' %}selected{% endif %}>💰 Số tiền cố định (VNĐ)</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Giá trị giảm <span class="req">*</span></label>
+      <input type="number" name="discount_value" value="{{ form.discount_value or '' }}"
+             required min="1" step="1000"
+             placeholder="VD: 20 (nếu %) hoặc 500000 (nếu VNĐ)">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label>Mô tả</label>
+    <textarea name="description" rows="3" maxlength="500"
+              placeholder="Mô tả chi tiết điều kiện áp dụng...">{{ form.description or '' }}</textarea>
+  </div>
+
+  <div class="form-row">
+    <label>Trạng thái</label>
+    <select name="status">
+      <option value="active" {% if form.status == 'active' or not form.status %}selected{% endif %}>Đang áp dụng</option>
+      <option value="inactive" {% if form.status == 'inactive' %}selected{% endif %}>Đã tắt</option>
+    </select>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a href="/policies" class="btn">Hủy</a>
+  </div>
+</form>
+{% endblock %}

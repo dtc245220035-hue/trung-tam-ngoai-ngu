@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Cơ sở vật chất{% endblock %}
+{% block content %}
+<h1>Quản lý cơ sở vật chất</h1>
+
+<div class="ledger">
+  <div><b>{{ total_rooms }}</b><span>Phòng học</span></div>
+  <div><b>{{ total_equipment }}</b><span>Thiết bị</span></div>
+  <div><b>{{ total_value|vnd }}</b><span>Tổng giá trị</span></div>
+</div>
+
+<form method="get" action="/facilities" class="toolbar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo mã, tên, phòng...">
+  <select name="ftype">
+    <option value="">Tất cả loại</option>
+    <option value="room" {% if ftype == 'room' %}selected{% endif %}>Phòng</option>
+    <option value="equipment" {% if ftype == 'equipment' %}selected{% endif %}>Thiết bị</option>
+  </select>
+  <select name="status">
+    <option value="">Tất cả trạng thái</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Đang dùng</option>
+    <option value="broken" {% if status == 'broken' %}selected{% endif %}>Hỏng</option>
+    <option value="disposed" {% if status == 'disposed' %}selected{% endif %}>Thanh lý</option>
+  </select>
+  <button type="submit" class="btn">Tìm</button>
+  <a href="/facilities/new" class="btn btn-primary">+ Thêm CSVC</a>
+</form>
+
+<table>
+  <tr>
+    <th>Mã</th><th>Tên</th><th>Loại</th><th>Phòng</th>
+    <th>SL</th><th>Đơn giá</th><th>Tổng giá trị</th>
+    <th>Ngày mua</th><th>Trạng thái</th><th>Thao tác</th>
+  </tr>
+  {% for f in facilities %}
+  <tr>
+    <td>{{ f.facility_code }}</td>
+    <td>{{ f.facility_name }}</td>
+    <td>
+      {% if f.facility_type == 'room' %}🏫 Phòng
+      {% else %}🔧 Thiết bị{% endif %}
+    </td>
+    <td>{{ f.room or '—' }}</td>
+    <td style="text-align:center">{{ f.quantity }}</td>
+    <td style="text-align:right">{{ f.unit_price|vnd }}</td>
+    <td style="text-align:right"><b>{{ f.total_value|vnd }}</b></td>
+    <td>{{ f.purchase_date.strftime('%d/%m/%Y') if f.purchase_date else '—' }}</td>
+    <td>
+      {% if f.status == 'active' %}<span class="tag tag-open">Đang dùng</span>
+      {% elif f.status == 'broken' %}<span class="tag tag-warn">Hỏng</span>
+      {% else %}<span class="tag tag-closed">Thanh lý</span>{% endif %}
+    </td>
+    <td class="actions">
+      <a href="/facilities/{{ f.facility_id }}/edit" class="btn-sm">Sửa</a>
+      <form method="post" action="/facilities/{{ f.facility_id }}/delete" class="inline"
+            onsubmit="return confirm('Xóa {{ f.facility_name }}?')">
+        <button type="submit" class="btn-sm btn-danger">Xóa</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="10" class="empty">Chưa có cơ sở vật chất nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

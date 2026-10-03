@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Lương giáo viên{% endblock %}
+{% block content %}
+<h1>Quản lý lương giáo viên</h1>
+
+<div class="ledger">
+  <div><b>{{ salaries|length }}</b><span>Bảng lương</span></div>
+  <div><b>{{ total_paid|vnd }}</b><span>Đã thanh toán</span></div>
+  <div><b style="color:#e65100">{{ total_pending|vnd }}</b><span>Chờ thanh toán</span></div>
+</div>
+
+<form method="get" action="/salaries" class="toolbar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên GV, mã GV...">
+  <select name="month">
+    <option value="">Tất cả tháng</option>
+    {% for m in months %}
+    <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+    {% endfor %}
+  </select>
+  <select name="status">
+    <option value="">Tất cả trạng thái</option>
+    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Chờ thanh toán</option>
+    <option value="paid" {% if status == 'paid' %}selected{% endif %}>Đã thanh toán</option>
+  </select>
+  <button type="submit" class="btn">Tìm</button>
+  <a href="/salaries/new" class="btn btn-primary">+ Thêm bảng lương</a>
+</form>
+
+<table>
+  <tr>
+    <th>Mã GV</th><th>Giáo viên</th><th>Tháng</th>
+    <th>Lương CB</th><th>Giờ dạy</th><th>Đơn giá/giờ</th>
+    <th>Thưởng</th><th>Khấu trừ</th><th>Tổng</th>
+    <th>Trạng thái</th><th>Thao tác</th>
+  </tr>
+  {% for s in salaries %}
+  <tr>
+    <td>{{ s.teacher.teacher_code }}</td>
+    <td>{{ s.teacher.user.full_name }}</td>
+    <td>{{ s.month }}</td>
+    <td style="text-align:right">{{ s.base_salary|vnd }}</td>
+    <td style="text-align:center">{{ s.teaching_hours }}h</td>
+    <td style="text-align:right">{{ s.hourly_rate|vnd }}</td>
+    <td style="text-align:right;color:#2e7d32">
+      {% if s.bonus > 0 %}+{{ s.bonus|vnd }}{% else %}—{% endif %}
+    </td>
+    <td style="text-align:right;color:#c62828">
+      {% if s.deduction > 0 %}-{{ s.deduction|vnd }}{% else %}—{% endif %}
+    </td>
+    <td style="text-align:right"><b>{{ s.total_salary|vnd }}</b></td>
+    <td>
+      {% if s.status == 'paid' %}<span class="tag tag-open">Đã trả</span>
+      {% else %}<span class="tag tag-warn">Chờ trả</span>{% endif %}
+    </td>
+    <td class="actions">
+      {% if s.status == 'pending' %}
+      <form method="post" action="/salaries/{{ s.salary_id }}/mark-paid" class="inline"
+            onsubmit="return confirm('Xác nhận đã thanh toán lương tháng {{ s.month }}?')">
+        <button type="submit" class="btn-sm">Trả lương</button>
+      </form>
+      <a href="/salaries/{{ s.salary_id }}/edit" class="btn-sm">Sửa</a>
+      {% endif %}
+      <form method="post" action="/salaries/{{ s.salary_id }}/delete" class="inline"
+            onsubmit="return confirm('Xóa bảng lương tháng {{ s.month }}?')">
+        <button type="submit" class="btn-sm btn-danger">Xóa</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="11" class="empty">Chưa có bảng lương nào.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

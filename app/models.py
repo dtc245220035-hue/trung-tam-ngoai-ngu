@@ -142,22 +142,32 @@ class Invoice(Base):
     student_id: Mapped[int] = mapped_column(ForeignKey("students.student_id"), nullable=False)
     class_id: Mapped[int] = mapped_column(ForeignKey("classes.class_id"), nullable=False)
     total_amount: Mapped[float] = mapped_column(MONEY, nullable=False)
+    discount_amount: Mapped[float] = mapped_column(MONEY, nullable=False, default=0)
     paid_amount: Mapped[float] = mapped_column(MONEY, nullable=False, default=0)
+    policy_id: Mapped[int | None] = mapped_column(ForeignKey("policies.policy_id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="unpaid")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     student = relationship("Student", back_populates="invoices")
     classroom = relationship("ClassRoom")
     payments = relationship("Payment", back_populates="invoice")
+    policy = relationship("Policy")
     __table_args__ = (
         CheckConstraint("total_amount > 0", name="ck_invoices_total"),
-        CheckConstraint("paid_amount >= 0 AND paid_amount <= total_amount", name="ck_invoices_paid"),
+        CheckConstraint("discount_amount >= 0", name="ck_invoices_discount"),
+        CheckConstraint("paid_amount >= 0 AND paid_amount + discount_amount <= total_amount",
+                        name="ck_invoices_paid"),
         CheckConstraint("status IN ('unpaid','partial','paid')", name="ck_invoices_status"),
     )
 
     @property
-    def remaining_amount(self) -> float:
-        return self.total_amount - self.paid_amount
+    def final_amount(self) -> float:
+        """Số tiền phải trả sau khi giảm giá."""
+        return self.total_amount - self.discount_amount
 
+    @property
+    def remaining_amount(self) -> float:
+        """Số tiền còn nợ."""
+        return self.final_amount - self.paid_amount
 
 class Payment(Base):
     __tablename__ = "payments"
@@ -211,3 +221,77 @@ class Result(Base):
         CheckConstraint("listening BETWEEN 0 AND 10 AND speaking BETWEEN 0 AND 10 AND reading BETWEEN 0 AND 10 AND writing BETWEEN 0 AND 10", name="ck_results_score"),
         UniqueConstraint("student_id", "class_id", name="uq_results"),
     )
+
+class Facility(Base):
+    __tablename__ = "facilities"
+    facility_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    facility_code: Mapped[str] = mapped_column(String(10), unique=True, nullable=False)
+    facility_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    facility_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    room: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    unit_price: Mapped[float] = mapped_column(MONEY, nullable=False, default=0)
+    purchase_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    __table_args__ = (
+        CheckConstraint("facility_type IN ('room','equipment')", name="ck_facilities_type"),
+        CheckConstraint("quantity > 0", name="ck_facilities_qty"),
+        CheckConstraint("unit_price >= 0", name="ck_facilities_price"),
+        CheckConstraint("status IN ('active','broken','disposed')", name="ck_facilities_status"),
+    )
+
+    @property
+    def total_value(self) -> float:
+        return self.quantity * self.unit_price
+
+
+class Salary(Base):
+    __tablename__ = "salaries"
+    salary_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("teachers.teacher_id"), nullable=False)
+    month: Mapped[str] = mapped_column(String(7), nullable=False)
+    base_salary: Mapped[float] = mapped_column(MONEY, nullable=False, default=0)
+    teaching_hours: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    hourly_rate: Mapped[float] = mapped_column(MONEY, nullable=False, default=0)
+    bonus: Mapped[float] = mapped_column(MONEY, nullable=False, default=0)
+    deduction: Mapped[float] = mapped_column(MONEY, nullable=False, default=0)
+    total_salary: Mapped[float] = mapped_column(MONEY, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    paid_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    teacher = relationship("Teacher")
+    __table_args__ = (
+        UniqueConstraint("teacher_id", "month", name="uq_salary_month"),
+        CheckConstraint("status IN ('pending','paid')", name="ck_salaries_status"),
+        CheckConstraint("base_salary >= 0 AND hourly_rate >= 0", name="ck_salaries_rates"),
+    )
+
+    def compute_total(self) -> float:
+        """Tính tổng lương tự động."""
+        return self.base_salary + self.teaching_hours * self.hourly_rate + self.bonus - self.deduction
+
+
+class Policy(Base):
+    __tablename__ = "policies"
+    policy_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    policy_code: Mapped[str] = mapped_column(String(10), unique=True, nullable=False)
+    policy_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    discount_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    discount_value: Mapped[float] = mapped_column(MONEY, nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    __table_args__ = (
+        CheckConstraint("discount_type IN ('percent','fixed')", name="ck_policies_type"),
+        CheckConstraint("discount_value > 0", name="ck_policies_value"),
+        CheckConstraint("status IN ('active','inactive')", name="ck_policies_status"),
+    )
+
+    def apply_to(self, amount: float) -> float:
+        """Trả về số tiền được giảm cho hóa đơn có tổng `amount`."""
+        if self.discount_type == "percent":
+            return round(amount * self.discount_value / 100, 2)
+        return min(self.discount_value, amount)

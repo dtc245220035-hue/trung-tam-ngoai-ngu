@@ -18,7 +18,8 @@
 <table>
   <tr>
     <th>Mã HĐ</th><th>Học viên</th><th>Lớp</th>
-    <th>Tổng tiền</th><th>Đã đóng</th><th>Còn lại</th>
+    <th>Tổng tiền</th><th>Giảm giá</th><th>Phải thu</th>
+    <th>Đã đóng</th><th>Còn lại</th>
     <th>Trạng thái</th><th>Ngày tạo</th><th>Thao tác</th>
   </tr>
   {% for inv in invoices %}
@@ -28,8 +29,14 @@
         <span style="color:#78909c;font-size:12px">{{ inv.student.student_code }}</span></td>
     <td>{{ inv.classroom.class_code }}</td>
     <td style="text-align:right">{{ inv.total_amount | vnd }}</td>
+    <td style="text-align:right;color:#2e7d32">
+      {% if inv.discount_amount > 0 %}-{{ inv.discount_amount | vnd }}{% else %}—{% endif %}
+    </td>
+    <td style="text-align:right"><b>{{ inv.final_amount | vnd }}</b></td>
     <td style="text-align:right">{{ inv.paid_amount | vnd }}</td>
-    <td style="text-align:right">{{ inv.remaining_amount | vnd }}</td>
+    <td style="text-align:right;color:{% if inv.remaining_amount > 0 %}#c62828{% else %}#2e7d32{% endif %}">
+      {{ inv.remaining_amount | vnd }}
+    </td>
     <td>
       {% if inv.status == 'paid' %}<span class="tag tag-open">Đã đủ</span>
       {% elif inv.status == 'partial' %}<span class="tag tag-warn">Một phần</span>
@@ -39,7 +46,7 @@
     <td><a href="/invoices/{{ inv.invoice_id }}" class="btn btn-sm">Chi tiết</a></td>
   </tr>
   {% else %}
-  <tr><td colspan="9" class="empty">Không có hóa đơn nào.</td></tr>
+  <tr><td colspan="11" class="empty">Không có hóa đơn nào.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}
