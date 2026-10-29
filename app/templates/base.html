@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
 {% block body %}
@@ -44,5 +44,166 @@
 </main>
 {% endif %}
 {% endblock %}
+
+<!-- Bong bóng Bot chat AI tư vấn góc dưới bên trái -->
+<div class="ai-widget" id="aiWidget">
+  <div class="ai-chat-panel" id="aiChatPanel" hidden>
+    <div class="ai-chat-head">
+      <div class="ai-chat-title">
+        <span class="ai-chat-dot"></span>
+        <div>
+          <b>Trợ lý AI Tư vấn</b>
+          <small>Gợi ý khóa học &amp; lớp đang mở</small>
+        </div>
+      </div>
+      <div class="ai-chat-actions">
+        <button type="button" class="ai-head-btn" id="aiResetBtn" title="Làm mới hội thoại">↺</button>
+        <button type="button" class="ai-head-btn" id="aiCloseBtn" title="Thu nhỏ">✕</button>
+      </div>
+    </div>
+
+    <div class="ai-chat-msgs" id="aiChatMsgs"></div>
+
+    <div class="ai-chat-chips">
+      <button type="button" class="ai-chip" data-q="Mình mới bắt đầu (A1) thì có lớp nào đang mở?">Mới bắt đầu (A1)</button>
+      <button type="button" class="ai-chip" data-q="Tư vấn giúp mình các lớp học buổi tối">Lớp buổi tối</button>
+      <button type="button" class="ai-chip" data-q="Có lớp luyện thi IELTS B2 hay Tiếng Nhật không?">IELTS / Tiếng Nhật</button>
+    </div>
+
+    <form class="ai-chat-form" id="aiChatForm">
+      <input type="text" id="aiChatInput" placeholder="Nhập trình độ, lịch rảnh cần tư vấn..." autocomplete="off" maxlength="400">
+      <button type="submit" class="ai-send-btn" id="aiSendBtn" title="Gửi">➤</button>
+    </form>
+  </div>
+
+  <button type="button" class="ai-fab" id="aiFabBtn" aria-label="Mở Bot chat AI tư vấn" title="Bot chat AI tư vấn lớp học">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+    </svg>
+    <span class="ai-fab-badge">AI</span>
+  </button>
+</div>
+
+<script>
+(function() {
+  const fab = document.getElementById("aiFabBtn");
+  const panel = document.getElementById("aiChatPanel");
+  const closeBtn = document.getElementById("aiCloseBtn");
+  const resetBtn = document.getElementById("aiResetBtn");
+  const msgsEl = document.getElementById("aiChatMsgs");
+  const form = document.getElementById("aiChatForm");
+  const input = document.getElementById("aiChatInput");
+  const sendBtn = document.getElementById("aiSendBtn");
+  const STORE_KEY = "ttnn_ai_chat_v1";
+  const OPEN_KEY = "ttnn_ai_open_v1";
+
+  const WELCOME_HTML = "Xin chào! Mình là <b>Trợ lý AI tư vấn</b> của trung tâm.<br>Bạn cho mình biết <b>trình độ (A1–C2)</b> và <b>lịch rảnh</b> mong muốn để mình gợi ý lớp đang mở phù hợp nhất nhé!";
+
+  let history = [];
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(STORE_KEY) || "[]");
+    if (Array.isArray(saved)) history = saved;
+  } catch (_) {}
+
+  function saveHistory() {
+    try { sessionStorage.setItem(STORE_KEY, JSON.stringify(history.slice(-12))); } catch (_) {}
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function appendBubble(role, html, isTyping) {
+    const wrap = document.createElement("div");
+    wrap.className = "ai-msg " + (role === "user" ? "ai-msg-user" : "ai-msg-bot") + (isTyping ? " ai-typing" : "");
+    const inner = document.createElement("div");
+    inner.className = "ai-bubble" + (role === "bot" ? " md-content" : "");
+    inner.innerHTML = html;
+    wrap.appendChild(inner);
+    msgsEl.appendChild(wrap);
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+    return wrap;
+  }
+
+  function renderAll() {
+    msgsEl.innerHTML = "";
+    appendBubble("bot", WELCOME_HTML, false);
+    for (const item of history) {
+      if (item.role === "user") {
+        appendBubble("user", escapeHtml(item.text), false);
+      } else {
+        appendBubble("bot", item.html || escapeHtml(item.text || ""), false);
+      }
+    }
+  }
+
+  function setOpen(open) {
+    panel.hidden = !open;
+    try { sessionStorage.setItem(OPEN_KEY, open ? "1" : "0"); } catch (_) {}
+    if (open) {
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+      setTimeout(() => input.focus(), 50);
+    }
+  }
+
+  fab.addEventListener("click", () => setOpen(panel.hidden));
+  closeBtn.addEventListener("click", () => setOpen(false));
+  resetBtn.addEventListener("click", () => {
+    history = [];
+    saveHistory();
+    renderAll();
+  });
+
+  async function sendMessage(text) {
+    const msg = (text || "").trim();
+    if (!msg || sendBtn.disabled) return;
+    input.value = "";
+    appendBubble("user", escapeHtml(msg), false);
+    const prevHistory = history.slice(-6).map(h => ({ role: h.role, text: h.text }));
+    history.push({ role: "user", text: msg });
+    saveHistory();
+
+    sendBtn.disabled = true;
+    const typingEl = appendBubble("bot", "Đang tra cứu dữ liệu lớp học...", true);
+
+    try {
+      const res = await fetch("/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, history: prevHistory })
+      });
+      const data = await res.json();
+      typingEl.remove();
+      const replyHtml = data.reply_html || escapeHtml(data.error || "Không thể kết nối trợ lý AI.");
+      const replyText = data.reply_text || data.error || "";
+      appendBubble("bot", replyHtml, false);
+      history.push({ role: "bot", text: replyText, html: replyHtml });
+      saveHistory();
+    } catch (_) {
+      typingEl.remove();
+      appendBubble("bot", "Có lỗi kết nối máy chủ, vui lòng thử lại sau.", false);
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    sendMessage(input.value);
+  });
+
+  document.querySelectorAll(".ai-chip").forEach(btn => {
+    btn.addEventListener("click", () => sendMessage(btn.getAttribute("data-q")));
+  });
+
+  renderAll();
+  if (sessionStorage.getItem(OPEN_KEY) === "1") {
+    setOpen(true);
+  }
+})();
+</script>
 </body>
 </html>

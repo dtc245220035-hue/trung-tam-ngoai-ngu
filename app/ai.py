@@ -4,20 +4,20 @@ import re
 import time
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .database import get_db
 from .deps import require_roles
 from .models import (Attendance, ClassRoom, Course, Enrollment, Invoice,
                      Result, Student, Teacher, User)
-from .utils import schedule_text
+from .utils import md_to_html, schedule_text, vnd
 from .web import flash, render
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 _GEMINI_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 MAX_RETRY = 3
 
 _client = None
@@ -424,3 +424,132 @@ def ai_progress_submit(request: Request,
                   summary=text,
                   ai_available=bool(_client),
                   used_fallback=used_fallback)
+
+
+# ============ 4. BOT CHAT AI TƯ VẤN (BONG BÓNG GÓC DƯỚI TRÁI) ============
+
+def _format_classes_for_chat(classes: list) -> str:
+    rows = []
+    for c in classes:
+        rows.append(
+            f"- Mã lớp: {c.class_code} | Khóa: {c.course.course_name} "
+            f"| Trình độ: {c.course.level} | Học phí: {vnd(c.course.tuition_fee)} ({c.course.duration} buổi) "
+            f"| Phòng: {c.room or 'Đang xếp'} | Lịch: {schedule_text(c)} "
+            f"| Còn trống: {c.seats_left}/{c.max_students} chỗ"
+        )
+    return "\n".join(rows)
+
+
+def _fallback_chat(message: str, classes: list) -> str:
+    if not classes:
+        return "Hiện tại trung tâm chưa có lớp nào đang mở còn chỗ trống. Bạn vui lòng quay lại sau nhé!"
+
+    q = message.lower()
+    matched = list(classes)
+
+    detected_level = None
+    for lv in ("A1", "A2", "B1", "B2", "C1", "C2"):
+        if lv.lower() in q:
+            detected_level = lv
+            break
+    if not detected_level:
+        if any(k in q for k in ("mất gốc", "cơ bản", "mới bắt đầu", "sơ cấp")):
+            detected_level = "A1"
+        elif "ielts" in q:
+            detected_level = "B2"
+
+    if "nhật" in q or "n5" in q:
+        by_lang = [c for c in matched if "nhật" in c.course.course_name.lower() or "n5" in c.course.course_name.lower()]
+        if by_lang:
+            matched = by_lang
+    elif detected_level:
+        by_lv = [c for c in matched if c.course.level == detected_level]
+        if by_lv:
+            matched = by_lv
+
+    for kw in ("thứ 2", "thứ 3", "thứ 4", "thứ 5", "thứ 6", "thứ 7", "chủ nhật"):
+        if kw in q:
+            by_day = [c for c in matched if kw in schedule_text(c).lower()]
+            if by_day:
+                matched = by_day
+            break
+    if "cuối tuần" in q:
+        by_wk = [c for c in matched if any(d in schedule_text(c).lower() for d in ("thứ 7", "chủ nhật"))]
+        if by_wk:
+            matched = by_wk
+    elif "tối" in q:
+        by_ev = [c for c in matched if any(h in schedule_text(c) for h in ("18:", "19:", "20:"))]
+        if by_ev:
+            matched = by_ev
+
+    lines = ["Dựa trên dữ liệu lớp đang mở tại trung tâm, mình gợi ý cho bạn:\n"]
+    for c in matched[:3]:
+        lines.append(
+            f"- **{c.class_code}** — {c.course.course_name} (Trình độ **{c.course.level}**)\n"
+            f"  Lịch học: {schedule_text(c)} | Học phí: **{vnd(c.course.tuition_fee)}** | Còn **{c.seats_left}/{c.max_students}** chỗ"
+        )
+    lines.append("\nBạn có thể cho mình biết thêm **trình độ (A1–C2)** hoặc **lịch rảnh** cụ thể để mình lọc sát hơn nhé!")
+    return "\n".join(lines)
+
+
+@router.post("/chat")
+async def ai_chat_bot(request: Request, db: Session = Depends(get_db)):
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    message = str(payload.get("message") or "").strip()
+    history = payload.get("history") or []
+    if not message:
+        return JSONResponse({"error": "Vui lòng nhập nội dung câu hỏi."}, status_code=400)
+    if len(message) > 500:
+        message = message[:500]
+
+    classes = (db.query(ClassRoom).filter(ClassRoom.status == "open")
+               .order_by(ClassRoom.class_code).all())
+    classes = [c for c in classes if c.seats_left > 0]
+
+    if not classes:
+        reply = "Hiện trung tâm chưa có lớp nào đang mở còn chỗ trống."
+        return JSONResponse({"reply_html": md_to_html(reply), "reply_text": reply, "used_fallback": False})
+
+    hist_lines = []
+    if isinstance(history, list):
+        for turn in history[-4:]:
+            if isinstance(turn, dict):
+                role_lbl = "Người dùng" if turn.get("role") == "user" else "Trợ lý"
+                content = str(turn.get("text") or "").strip()[:300]
+                if content:
+                    hist_lines.append(f"{role_lbl}: {content}")
+    hist_block = ("\nLịch sử hội thoại gần nhất:\n" + "\n".join(hist_lines) + "\n") if hist_lines else ""
+
+    system = (
+        "Bạn là Trợ lý AI tư vấn khóa học và xếp lớp của Trung tâm ngoại ngữ. "
+        "Chỉ tư vấn dựa trên danh sách lớp đang mở còn chỗ từ CSDL được cung cấp bên dưới. "
+        "Tuyệt đối KHÔNG bịa thêm mã lớp ngoài danh sách, không cam kết kết quả đầu ra. "
+        "Khi gợi ý lớp, nêu rõ Mã lớp, Tên khóa, Trình độ, Lịch học, Học phí và Số chỗ còn trống (tối đa 3 lớp phù hợp nhất). "
+        "Nếu người dùng chưa nêu rõ trình độ hoặc lịch rảnh, hãy gợi ý ngắn gọn và hỏi thêm nhu cầu. "
+        "Trả lời bằng tiếng Việt thân thiện, ngắn gọn, dùng bullet point dễ đọc."
+    )
+    user_prompt = (
+        f"Danh sách các lớp đang mở tuyển sinh trong CSDL:\n{_format_classes_for_chat(classes)}\n"
+        f"{hist_block}\n"
+        f"Câu hỏi hiện tại của người dùng: {message}"
+    )
+
+    text = _call_gemini(system, user_prompt)
+    if text and _has_fake_class(text, classes):
+        print("[AI] Chat tư vấn: phát hiện mã lớp không tồn tại trong DB, chuyển sang dự phòng")
+        text = None
+
+    used_fallback = False
+    if not text:
+        text = _fallback_chat(message, classes)
+        used_fallback = True
+
+    return JSONResponse({
+        "reply_html": md_to_html(text),
+        "reply_text": text,
+        "used_fallback": used_fallback,
+    })

@@ -44,7 +44,6 @@ MENU = {
         _m("enroll", "Đăng ký học"),
         _m("invoices", "Học phí"),
         _m("lookup", "Tra cứu"),
-        _m("ai_advice", "AI tư vấn lớp", "/ai/advice"),
     ],
     "teacher": [
         _m("dashboard", "Tổng quan"),
