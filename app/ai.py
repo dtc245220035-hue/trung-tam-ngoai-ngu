@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
@@ -54,10 +55,21 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> str | None:
                 return text
         except Exception as e:
             print(f"[AI] Attempt {attempt} failed: {e}")
+        if attempt < MAX_RETRY:
+            time.sleep(attempt)  # chờ 1s, 2s giữa các lần thử lại
     return None
 
 
 # ============ 1. AI TƯ VẤN LỚP ============
+
+CLASS_CODE_RE = re.compile(r"\b[A-Z]{2,4}\d{3,4}\b")
+
+
+def _has_fake_class(text: str, classes: list) -> bool:
+    """True nếu AI nhắc tới mã lớp không nằm trong danh sách lớp còn chỗ đã gửi cho nó."""
+    valid = {c.class_code for c in classes}
+    return any(code not in valid for code in CLASS_CODE_RE.findall(text))
+
 
 def _fallback_advice(level: str, availability: str, classes: list) -> str:
     lines = ["**Gợi ý lớp phù hợp** (phương án dự phòng)\n"]
@@ -110,13 +122,14 @@ def ai_advice_submit(request: Request,
 
     classes = (db.query(ClassRoom).filter(ClassRoom.status == "open")
                .order_by(ClassRoom.class_code).all())
+    classes = [c for c in classes if c.seats_left > 0]  # chỉ tư vấn lớp còn chỗ
 
     if not level or level not in ("A1", "A2", "B1", "B2", "C1", "C2"):
         flash(request, "Vui lòng chọn trình độ hợp lệ (A1-C2).", kind="err")
         return RedirectResponse("/ai/advice", status_code=303)
 
     if not classes:
-        flash(request, "Hiện không có lớp nào đang mở.", kind="err")
+        flash(request, "Hiện không có lớp nào đang mở còn chỗ.", kind="err")
         return RedirectResponse("/ai/advice", status_code=303)
 
     system = (
@@ -133,6 +146,10 @@ def ai_advice_submit(request: Request,
     )
 
     text = _call_gemini(system, user_prompt)
+    if text and _has_fake_class(text, classes):
+        print("[AI] Tư vấn lớp: AI nhắc tới lớp không có trong danh sách, chuyển sang dự phòng")
+        text = None
+
     used_fallback = False
     if not text:
         text = _fallback_advice(level, availability, classes)
@@ -261,14 +278,16 @@ def ai_exercise_submit(request: Request,
         exercises = _fallback_exercise(topic, level, num)
         used_fallback = True
 
+    # Chuẩn hóa: dữ liệu từ AI dùng question/options/correct_answer/explanation,
+    # dữ liệu dự phòng dùng q/opts/ans/explain, nên đọc được cả hai dạng.
     normalized = []
     for i, e in enumerate(exercises, 1):
         normalized.append({
             "idx": i,
-            "question": e.get("question", ""),
-            "options": e.get("options", []),
-            "answer": e.get("correct_answer", ""),
-            "explanation": e.get("explanation", ""),
+            "question": e.get("question") or e.get("q", ""),
+            "options": e.get("options") or e.get("opts", []),
+            "answer": e.get("correct_answer") or e.get("ans", ""),
+            "explanation": e.get("explanation") or e.get("explain", ""),
         })
 
     return render(request, "ai_exercise.html", user=user,
